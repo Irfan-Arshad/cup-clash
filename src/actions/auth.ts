@@ -1,0 +1,75 @@
+"use server";
+
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+
+export async function signUp(formData: FormData) {
+  const supabase = await createClient();
+
+  const displayName = String(formData.get("displayName") || "").trim();
+  const email = String(formData.get("email") || "").trim();
+  const password = String(formData.get("password") || "");
+
+  if (!displayName || !email || !password) {
+    redirect("/auth/register?error=missing-fields");
+  }
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        display_name: displayName,
+      },
+    },
+  });
+
+  if (error) {
+    redirect(`/auth/register?error=${encodeURIComponent(error.message)}`);
+  }
+
+  const userId = data.user?.id;
+
+  if (userId) {
+    await supabase.from("profiles").upsert({
+      id: userId,
+      display_name: displayName,
+    });
+  }
+
+  revalidatePath("/", "layout");
+  redirect("/dashboard");
+}
+
+export async function signIn(formData: FormData) {
+  const supabase = await createClient();
+
+  const email = String(formData.get("email") || "").trim();
+  const password = String(formData.get("password") || "");
+
+  if (!email || !password) {
+    redirect("/auth/login?error=missing-fields");
+  }
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    redirect(`/auth/login?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/", "layout");
+  redirect("/dashboard");
+}
+
+export async function signOut() {
+  const supabase = await createClient();
+
+  await supabase.auth.signOut();
+
+  revalidatePath("/", "layout");
+  redirect("/");
+}
