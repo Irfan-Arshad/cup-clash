@@ -73,3 +73,30 @@ export async function signOut() {
   revalidatePath("/", "layout");
   redirect("/");
 }
+
+export async function resetPassword(formData: FormData) {
+  const email = String(formData.get("email") || "").trim();
+
+  if (!email) {
+    redirect("/auth/reset-password?error=Email%20is%20required");
+  }
+
+  const supabase = await createClient();
+
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${siteUrl}/auth/update-password`,
+  });
+
+  if (error) {
+    redirect(
+      `/auth/reset-password?error=${encodeURIComponent(error.message)}`
+    );
+  }
+
+  redirect(
+    "/auth/reset-password?success=Password%20reset%20email%20sent"
+  );
+}

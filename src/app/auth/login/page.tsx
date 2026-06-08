@@ -126,6 +126,15 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                   />
                 </div>
 
+                <div className="text-right">
+                  <Link
+                    href="/auth/reset-password"
+                    className="text-sm font-semibold text-slate-300 underline underline-offset-4 hover:text-white"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+
                 <Button type="submit" className="h-12 w-full">
                   Log in
                   <ArrowRight className="ml-2 h-4 w-4" />

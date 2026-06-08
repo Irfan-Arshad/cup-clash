@@ -7,28 +7,41 @@ import { Button } from "@/components/ui/button";
 type CopyInviteCodeProps = {
   inviteCode: string;
   leagueName: string;
+  size?: "default" | "sm";
+  fullWidth?: boolean;
 };
 
 export function CopyInviteCode({
   inviteCode,
   leagueName,
+  size = "default",
+  fullWidth = false,
 }: CopyInviteCodeProps) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(
-      `Join my Cup Clash league "${leagueName}" using invite code: ${inviteCode}`
-    );
+    const message = `Join my Cup Clash league "${leagueName}" using invite code: ${inviteCode}`;
 
-    setCopied(true);
+    try {
+      await navigator.clipboard.writeText(message);
+      setCopied(true);
 
-    setTimeout(() => {
+      setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+    } catch {
       setCopied(false);
-    }, 2000);
+    }
   }
 
   return (
-    <Button type="button" variant="secondary" onClick={handleCopy}>
+    <Button
+      type="button"
+      variant="secondary"
+      size={size}
+      onClick={handleCopy}
+      className={fullWidth ? "w-full" : ""}
+    >
       {copied ? (
         <>
           <Check className="mr-2 h-4 w-4" />
@@ -37,7 +50,7 @@ export function CopyInviteCode({
       ) : (
         <>
           <Copy className="mr-2 h-4 w-4" />
-          Copy code
+          Copy invite
         </>
       )}
     </Button>
