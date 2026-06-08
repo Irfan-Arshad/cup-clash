@@ -9,6 +9,7 @@ import {
   Shield,
   Target,
   Trophy,
+  User,
   Users,
   X,
 } from "lucide-react";
@@ -43,6 +44,11 @@ export function AppHeader({ isAdmin = false }: AppHeaderProps) {
       href: "/leagues/new",
       label: "Create",
       icon: Plus,
+    },
+    { 
+      href: "/profile",
+      label: "Profile",
+      icon: User, 
     },
   ];
 

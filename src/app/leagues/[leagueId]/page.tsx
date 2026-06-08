@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
   BarChart3,
-  CheckCircle2,
   Copy,
   Crown,
   Medal,
@@ -17,6 +16,8 @@ import { saveTournamentPick } from "@/actions/tournament-picks";
 import { CopyInviteCode } from "@/components/league/copy-invite-code";
 import { AppShell } from "@/components/layout/app-shell";
 import { PageHero } from "@/components/layout/page-hero";
+import { TeamFlag, type TeamFlagData } from "@/components/team/team-flag";
+import { AppBadge } from "@/components/ui/app-badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,7 +28,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 
 type LeaguePageProps = {
   params: Promise<{
@@ -37,6 +37,10 @@ type LeaguePageProps = {
     error?: string;
     success?: string;
   }>;
+};
+
+type Team = TeamFlagData & {
+  id?: number;
 };
 
 type LeaderboardRow = {
@@ -53,9 +57,22 @@ type LeaderboardRow = {
   correctResults: number;
 };
 
-type TournamentPickTeam = {
-  name: string;
-  short_name: string;
+type FinishedFixtureBreakdown = {
+  fixtureId: number;
+  homeTeam: Team | null;
+  awayTeam: Team | null;
+  homeScore: number | null;
+  awayScore: number | null;
+  matchNumber: number | null;
+  groupName: string | null;
+  venue: string | null;
+  predictions: {
+    userId: string;
+    displayName: string;
+    predictedHome: number;
+    predictedAway: number;
+    points: number;
+  }[];
 };
 
 function getResult(home: number, away: number) {
@@ -150,7 +167,9 @@ export default async function LeaguePage({
       points,
       teams (
         name,
-        short_name
+        short_name,
+        flag_emoji,
+        flag_url
       )
     `
     )
@@ -162,10 +181,9 @@ export default async function LeaguePage({
     Array.isArray(currentUserPick?.teams)
       ? currentUserPick.teams[0]
       : currentUserPick?.teams
-  ) as TournamentPickTeam | undefined;
+  ) as Team | undefined;
 
-  const currentUserPickTeamName =
-    currentUserPickTeam?.name || "Not picked yet";
+  const currentUserPickTeamName = currentUserPickTeam?.name || "Unknown team";
 
   const { data: tournamentPickRows } = await supabase
     .from("tournament_picks")
@@ -176,7 +194,9 @@ export default async function LeaguePage({
       points,
       teams (
         name,
-        short_name
+        short_name,
+        flag_emoji,
+        flag_url
       )
     `
     )
@@ -203,11 +223,15 @@ export default async function LeaguePage({
               status,
               home_team:teams!fixtures_home_team_id_fkey (
                 name,
-                short_name
+                short_name,
+                flag_emoji,
+                flag_url
               ),
               away_team:teams!fixtures_away_team_id_fkey (
                 name,
-                short_name
+                short_name,
+                flag_emoji,
+                flag_url
               )
             )
           `
@@ -223,13 +247,11 @@ export default async function LeaguePage({
     (profile) => profile.id === user.id
   );
 
-  const isAdmin = currentUserProfile?.is_admin === true;
-
   const tournamentPickMap = new Map(
     tournamentPickRows?.map((pick) => {
       const team = (
         Array.isArray(pick.teams) ? pick.teams[0] : pick.teams
-      ) as TournamentPickTeam | undefined;
+      ) as Team | undefined;
 
       return [
         pick.user_id,
@@ -241,6 +263,8 @@ export default async function LeaguePage({
       ];
     }) || []
   );
+
+  const isAdmin = currentUserProfile?.is_admin === true;
 
   const leaderboard: LeaderboardRow[] =
     memberRows?.map((member) => {
@@ -318,14 +342,8 @@ export default async function LeaguePage({
     }) || [];
 
   const sortedLeaderboard = [...leaderboard].sort((a, b) => {
-    if (b.totalPoints !== a.totalPoints) {
-      return b.totalPoints - a.totalPoints;
-    }
-
-    if (b.exactScores !== a.exactScores) {
-      return b.exactScores - a.exactScores;
-    }
-
+    if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+    if (b.exactScores !== a.exactScores) return b.exactScores - a.exactScores;
     if (b.correctResults !== a.correctResults) {
       return b.correctResults - a.correctResults;
     }
@@ -335,23 +353,7 @@ export default async function LeaguePage({
 
   const finishedFixturePredictionGroups = new Map<
     number,
-    {
-      fixtureId: number;
-      homeTeam: string;
-      awayTeam: string;
-      homeScore: number | null;
-      awayScore: number | null;
-      matchNumber: number | null;
-      groupName: string | null;
-      venue: string | null;
-      predictions: {
-        userId: string;
-        displayName: string;
-        predictedHome: number;
-        predictedAway: number;
-        points: number;
-      }[];
-    }
+    FinishedFixtureBreakdown
   >();
 
   for (const prediction of predictionRows || []) {
@@ -363,13 +365,17 @@ export default async function LeaguePage({
       continue;
     }
 
-    const homeTeam = Array.isArray(fixture.home_team)
-      ? fixture.home_team[0]
-      : fixture.home_team;
+    const homeTeam = (
+      Array.isArray(fixture.home_team)
+        ? fixture.home_team[0]
+        : fixture.home_team
+    ) as Team | null;
 
-    const awayTeam = Array.isArray(fixture.away_team)
-      ? fixture.away_team[0]
-      : fixture.away_team;
+    const awayTeam = (
+      Array.isArray(fixture.away_team)
+        ? fixture.away_team[0]
+        : fixture.away_team
+    ) as Team | null;
 
     if (!finishedFixturePredictionGroups.has(fixture.id)) {
       finishedFixturePredictionGroups.set(fixture.id, {
@@ -377,8 +383,8 @@ export default async function LeaguePage({
         matchNumber: fixture.match_number,
         groupName: fixture.group_name,
         venue: fixture.venue,
-        homeTeam: homeTeam?.name || "Home",
-        awayTeam: awayTeam?.name || "Away",
+        homeTeam,
+        awayTeam,
         homeScore: fixture.home_score,
         awayScore: fixture.away_score,
         predictions: [],
@@ -404,17 +410,13 @@ export default async function LeaguePage({
     : null;
 
   const topPlayer = sortedLeaderboard[0];
-  const pointsToTop =
-    currentUserRow && topPlayer && currentUserRow.userId !== topPlayer.userId
-      ? topPlayer.totalPoints - currentUserRow.totalPoints
-      : 0;
 
   return (
     <AppShell isAdmin={isAdmin}>
       <PageHero
         eyebrow="Private League"
         title={league.name}
-        description="Predict fixtures, earn points, compare winner picks, and climb above your group chat."
+        description="Predict fixtures, earn points, and climb above your group chat."
         actions={
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button asChild variant="secondary">
@@ -442,50 +444,43 @@ export default async function LeaguePage({
         </div>
       )}
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-6 grid gap-4 md:grid-cols-4">
         <StatCard
           title="Members"
           value={leaderboard.length}
-          description="Players joined this league."
+          description="Players joined"
           icon={<Users className="h-5 w-5" />}
         />
 
         <StatCard
           title="Your rank"
           value={currentUserRank ? `#${currentUserRank}` : "-"}
-          description={
-            pointsToTop > 0
-              ? `${pointsToTop} points off top spot.`
-              : "You are leading or level top."
-          }
+          description="In this league"
           icon={<Medal className="h-5 w-5" />}
         />
 
         <StatCard
           title="Your points"
           value={currentUserRow?.totalPoints || 0}
-          description="Fixture and bonus points."
+          description="Points earned"
           icon={<Target className="h-5 w-5" />}
         />
 
-        <Card className="pitch-card text-white">
+        <Card className="gold-card text-white">
           <CardContent className="p-6">
             <div className="flex items-center justify-between gap-4">
               <p className="text-sm font-semibold text-slate-300">
                 Invite code
               </p>
-
-              <div className="rounded-2xl border border-white/10 bg-white/10 p-2 text-emerald-300">
-                <Copy className="h-5 w-5" />
-              </div>
+              <Copy className="h-5 w-5 text-yellow-300" />
             </div>
 
-            <p className="mt-5 font-mono text-3xl font-black tracking-[0.22em]">
+            <p className="mt-6 font-mono text-3xl font-black tracking-[0.22em]">
               {league.invite_code}
             </p>
 
             <p className="mt-2 text-sm text-slate-400">
-              Share this with friends to join.
+              Share with friends.
             </p>
 
             <div className="mt-4">
@@ -498,31 +493,60 @@ export default async function LeaguePage({
         </Card>
       </div>
 
-      <Card className="mt-6 pitch-card text-white">
+      {topPlayer && (
+        <Card className="mt-6 pitch-card text-white">
+          <CardContent className="flex flex-col justify-between gap-4 p-6 sm:flex-row sm:items-center">
+            <div>
+              <AppBadge variant="gold" className="px-3 py-1.5">
+                <Sparkles className="mr-1 h-3 w-3" />
+                {topPlayer.displayName} leads with {topPlayer.totalPoints} pts
+              </AppBadge>
+
+              <h2 className="mt-4 text-2xl font-black tracking-tight">
+                The league table is live
+              </h2>
+
+              <p className="mt-2 text-sm text-slate-400">
+                Fixture points and tournament winner bonus points are combined
+                into the total.
+              </p>
+            </div>
+
+            <Trophy className="h-14 w-14 text-yellow-300" />
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="mt-8 pitch-card text-white">
         <CardContent className="p-6 sm:p-8">
           <div className="grid gap-6 lg:grid-cols-[1fr_420px] lg:items-end">
             <div>
               <div className="flex items-center gap-2">
                 <Crown className="h-6 w-6 text-yellow-300" />
-                <h2 className="text-2xl font-bold tracking-tight">
+                <h2 className="text-2xl font-black tracking-tight">
                   Tournament winner pick
                 </h2>
               </div>
 
               <p className="mt-3 max-w-2xl text-slate-300">
-                Pick the team you think will win the tournament. If you get it
-                right, you can steal 20 bonus points at the end.
+                Pick the team you think will win the World Cup. This can be
+                worth bonus points later.
               </p>
 
-              <div className="mt-5 rounded-3xl border border-yellow-300/20 bg-yellow-300/10 px-5 py-4">
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-yellow-200">
-                  Your current pick
-                </p>
+              {currentUserPick && (
+                <div className="mt-5 flex items-center gap-4 rounded-3xl border border-yellow-300/20 bg-yellow-300/10 px-5 py-4">
+                  <TeamFlag team={currentUserPickTeam} size="sm" />
 
-                <p className="mt-2 text-2xl font-black">
-                  {currentUserPickTeamName}
-                </p>
-              </div>
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-yellow-200">
+                      Your current pick
+                    </p>
+                    <p className="mt-1 text-xl font-black">
+                      {currentUserPickTeamName}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <form action={saveTournamentPick} className="space-y-3">
@@ -553,198 +577,156 @@ export default async function LeaguePage({
         </CardContent>
       </Card>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[0.85fr_1.4fr]">
-        <Card className="glass-card text-white">
-          <CardContent className="p-6 sm:p-8">
-            <div className="flex items-center gap-2">
-              <Crown className="h-6 w-6 text-yellow-300" />
-              <h2 className="text-2xl font-bold tracking-tight">
-                Winner picks
-              </h2>
+      <Card className="mt-8 glass-card text-white">
+        <CardContent className="p-6 sm:p-8">
+          <div className="flex items-center gap-2">
+            <Crown className="h-6 w-6 text-yellow-300" />
+            <h2 className="text-2xl font-black tracking-tight">
+              League winner picks
+            </h2>
+          </div>
+
+          {sortedLeaderboard.length === 0 ? (
+            <p className="mt-5 text-slate-300">No picks yet.</p>
+          ) : (
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {sortedLeaderboard.map((row) => (
+                <div
+                  key={`winner-pick-${row.userId}`}
+                  className="flex items-center justify-between gap-4 rounded-3xl border border-white/10 bg-slate-950/45 px-5 py-4"
+                >
+                  <div>
+                    <p className="font-bold">{row.displayName}</p>
+                    <p className="mt-1 text-sm text-slate-400">
+                      {row.winnerPick || "Not picked yet"}
+                    </p>
+                  </div>
+
+                  <AppBadge variant="gold">
+                    {row.tournamentPickPoints} pts
+                  </AppBadge>
+                </div>
+              ))}
             </div>
+          )}
+        </CardContent>
+      </Card>
 
-            {sortedLeaderboard.length === 0 ? (
-              <p className="mt-5 text-slate-300">No picks yet.</p>
-            ) : (
-              <div className="mt-5 space-y-3">
-                {sortedLeaderboard.map((row) => {
-                  const hasPick = Boolean(row.winnerPick);
+      <Card className="mt-8 glass-card text-white">
+        <CardContent className="p-6 sm:p-8">
+          <div className="flex items-center gap-2">
+            <Trophy className="h-6 w-6 text-yellow-300" />
+            <h2 className="text-2xl font-black tracking-tight">
+              Leaderboard
+            </h2>
+          </div>
 
-                  return (
-                    <div
-                      key={`winner-pick-${row.userId}`}
-                      className="flex items-center justify-between gap-4 rounded-3xl border border-white/10 bg-slate-950/45 px-4 py-3"
-                    >
-                      <div>
-                        <p className="font-bold">{row.displayName}</p>
-                        <p className="mt-1 text-sm text-slate-400">
-                          {row.winnerPick || "Not picked yet"}
-                        </p>
-                      </div>
+          {sortedLeaderboard.length === 0 ? (
+            <p className="mt-5 text-slate-300">No members yet.</p>
+          ) : (
+            <div className="mt-5 space-y-3">
+              {sortedLeaderboard.map((row, index) => {
+                const rank = index + 1;
+                const isCurrentUser = row.userId === user.id;
 
-                      <Badge
-                        className={
-                          hasPick
-                            ? "border-emerald-400/20 bg-emerald-400/15 text-emerald-200 hover:bg-emerald-400/15"
-                            : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/5"
-                        }
-                      >
-                        {row.tournamentPickPoints} pts
-                      </Badge>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card text-white">
-          <CardContent className="p-6 sm:p-8">
-            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-              <div className="flex items-center gap-2">
-                <Trophy className="h-6 w-6 text-yellow-300" />
-                <h2 className="text-2xl font-bold tracking-tight">
-                  Leaderboard
-                </h2>
-              </div>
-
-              {topPlayer && (
-                <Badge className="w-fit rounded-full border-yellow-300/25 bg-yellow-300/10 px-3 py-1.5 text-xs font-bold text-yellow-100 shadow-sm shadow-yellow-950/30 hover:bg-yellow-300/10">
-                  <Sparkles className="mr-1 h-3 w-3" />
-                  {topPlayer.displayName} leads with {topPlayer.totalPoints} pts
-                </Badge>
-              )}
-            </div>
-
-            {sortedLeaderboard.length === 0 ? (
-              <p className="mt-5 text-slate-300">No members yet.</p>
-            ) : (
-              <div className="mt-5 space-y-3">
-                {sortedLeaderboard.map((row, index) => {
-                  const rank = index + 1;
-                  const isCurrentUser = row.userId === user.id;
-
-                  return (
-                    <div
-                      key={row.userId}
-                      className={`rounded-3xl border p-4 transition duration-200 hover:-translate-y-0.5 ${getRankClasses(
-                        rank,
-                        isCurrentUser
-                      )}`}
-                    >
-                      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl bg-white text-2xl font-black text-slate-950 shadow-xl">
-                            {rank}
-                            <div className="absolute -right-2 -top-2 rounded-full border border-white/10 bg-slate-950 p-1">
-                              {getRankIcon(rank)}
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="text-xl font-black tracking-tight">
-                                {row.displayName}
-                              </p>
-
-                              {isCurrentUser && (
-                                  <Badge className="rounded-full border-emerald-400/30 bg-emerald-400/15 px-2.5 py-1 text-xs font-bold text-emerald-100 hover:bg-emerald-400/15">
-                                    You
-                                  </Badge>
-                                )}
-
-                                <Badge className="rounded-full border-white/15 bg-white/10 px-2.5 py-1 text-xs font-semibold capitalize text-slate-100 hover:bg-white/10">
-                                  {row.role}
-                                </Badge>
-
-                                <Badge
-                                    className={
-                                      rank === 1
-                                        ? "rounded-full border-yellow-300/20 bg-yellow-300/10 px-2.5 py-1 text-xs font-semibold text-yellow-100 hover:bg-yellow-300/10"
-                                        : rank === 2
-                                          ? "rounded-full border-slate-300/20 bg-white/10 px-2.5 py-1 text-xs font-semibold text-slate-100 hover:bg-white/10"
-                                          : rank === 3
-                                            ? "rounded-full border-orange-300/20 bg-orange-300/10 px-2.5 py-1 text-xs font-semibold text-orange-100 hover:bg-orange-300/10"
-                                            : "rounded-full border-white/15 bg-white/10 px-2.5 py-1 text-xs font-semibold text-slate-100 hover:bg-white/10"
-                                    }
-                                  >
-                                    {getRankLabel(rank)}
-                                </Badge>
-                            </div>
-
-                            <p className="mt-2 text-sm text-slate-400">
-                              {row.predictionsMade} predictions made
-                            </p>
-
-                            <p className="mt-1 text-sm text-slate-400">
-                              Winner pick:{" "}
-                              <span className="font-medium text-slate-200">
-                                {row.winnerPick || "Not picked yet"}
-                              </span>
-                            </p>
-                          </div>
+                return (
+                  <div
+                    key={row.userId}
+                    className={`rounded-3xl border px-5 py-5 ${getRankClasses(
+                      rank,
+                      isCurrentUser
+                    )}`}
+                  >
+                    <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/10">
+                          {getRankIcon(rank)}
                         </div>
 
-                        <div className="grid grid-cols-3 gap-3 text-center sm:min-w-[340px]">
-                          <div className="score-pill rounded-2xl px-3 py-3">
-                            <p className="text-3xl font-black">
-                              {row.totalPoints}
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-lg font-black">
+                              #{rank} {row.displayName}
                             </p>
-                            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">
-                              total
-                            </p>
+
+                            {isCurrentUser && (
+                              <AppBadge variant="emerald">You</AppBadge>
+                            )}
+
+                            <AppBadge
+                              variant="muted"
+                              className="capitalize"
+                            >
+                              {row.role}
+                            </AppBadge>
+
+                            <AppBadge
+                              variant={
+                                rank === 1
+                                  ? "gold"
+                                  : rank === 2
+                                    ? "slate"
+                                    : rank === 3
+                                      ? "gold"
+                                      : "muted"
+                              }
+                            >
+                              {getRankLabel(rank)}
+                            </AppBadge>
                           </div>
 
-                          <div className="score-pill rounded-2xl px-3 py-3">
-                            <p className="text-3xl font-black">
-                              {row.exactScores}
-                            </p>
-                            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">
-                              exact
-                            </p>
-                          </div>
-
-                          <div className="score-pill rounded-2xl px-3 py-3">
-                            <p className="text-3xl font-black">
-                              {row.correctResults}
-                            </p>
-                            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">
-                              results
-                            </p>
-                          </div>
+                          <p className="mt-2 text-sm text-slate-400">
+                            {row.predictionsMade} predictions made • Winner
+                            pick:{" "}
+                            <span className="text-slate-200">
+                              {row.winnerPick || "Not picked yet"}
+                            </span>
+                          </p>
                         </div>
                       </div>
 
-                      <div className="mt-4 grid gap-3 border-t border-white/10 pt-4 text-sm text-slate-300 sm:grid-cols-2">
-                        <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-2">
-                          <span>Fixture points</span>
-                          <span className="font-bold text-white">
-                            {row.fixturePoints}
-                          </span>
+                      <div className="grid grid-cols-3 gap-3 text-center sm:min-w-[340px]">
+                        <div className="score-pill rounded-2xl px-4 py-3">
+                          <p className="text-2xl font-black">
+                            {row.totalPoints}
+                          </p>
+                          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                            total pts
+                          </p>
                         </div>
 
-                        <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-2">
-                          <span>Bonus points</span>
-                          <span className="font-bold text-white">
-                            {row.tournamentPickPoints}
-                          </span>
+                        <div className="score-pill rounded-2xl px-4 py-3">
+                          <p className="text-2xl font-black">
+                            {row.exactScores}
+                          </p>
+                          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                            exact
+                          </p>
+                        </div>
+
+                        <div className="score-pill rounded-2xl px-4 py-3">
+                          <p className="text-2xl font-black">
+                            {row.correctResults}
+                          </p>
+                          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                            outcomes
+                          </p>
                         </div>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-      <Card className="mt-6 fixture-card text-white">
+      <Card className="mt-8 fixture-card text-white">
         <CardContent className="p-6 sm:p-8">
           <div className="flex items-center gap-2">
             <Target className="h-6 w-6 text-emerald-300" />
-            <h2 className="text-2xl font-bold tracking-tight">
+            <h2 className="text-2xl font-black tracking-tight">
               Prediction breakdown
             </h2>
           </div>
@@ -760,48 +742,71 @@ export default async function LeaguePage({
                   key={fixture.fixtureId}
                   className="rounded-3xl border border-white/10 bg-slate-950/45 p-5"
                 >
-                  <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-                    <div>
-                      <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-4 flex flex-wrap items-center gap-2">
                         {fixture.matchNumber && (
-                          <Badge variant="outline">
+                          <AppBadge variant="muted">
                             Match {fixture.matchNumber}
-                          </Badge>
+                          </AppBadge>
                         )}
 
                         {fixture.groupName && (
-                          <Badge variant="secondary">
+                          <AppBadge variant="slate">
                             {fixture.groupName}
-                          </Badge>
+                          </AppBadge>
+                        )}
+
+                        {fixture.venue && (
+                          <AppBadge variant="muted">{fixture.venue}</AppBadge>
                         )}
                       </div>
 
-                      <p className="mt-3 text-xl font-black tracking-tight">
-                        {fixture.homeTeam} vs {fixture.awayTeam}
-                      </p>
+                      <div className="grid gap-5 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+                        <div className="flex items-center gap-4">
+                          <TeamFlag team={fixture.homeTeam} size="sm" />
 
-                      <p className="mt-1 text-sm text-slate-300">
-                        Final score:{" "}
-                        <span className="font-bold text-white">
-                          {fixture.homeScore} - {fixture.awayScore}
-                        </span>
-                      </p>
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
+                              {fixture.homeTeam?.short_name}
+                            </p>
+                            <h3 className="mt-1 text-xl font-black tracking-tight">
+                              {fixture.homeTeam?.name}
+                            </h3>
+                          </div>
+                        </div>
 
-                      {fixture.venue && (
-                        <p className="mt-1 text-sm text-slate-500">
-                          {fixture.venue}
-                        </p>
-                      )}
+                        <div className="flex justify-start sm:justify-center">
+                          <div className="rounded-full border border-white/10 bg-white px-3 py-1.5 text-xs font-black uppercase tracking-[0.24em] text-slate-950">
+                            {fixture.homeScore} - {fixture.awayScore}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 sm:justify-end sm:text-right">
+                          <div className="sm:order-2">
+                            <TeamFlag team={fixture.awayTeam} size="sm" />
+                          </div>
+
+                          <div className="sm:order-1">
+                            <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
+                              {fixture.awayTeam?.short_name}
+                            </p>
+                            <h3 className="mt-1 text-xl font-black tracking-tight">
+                              {fixture.awayTeam?.name}
+                            </h3>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <div className="mt-5 grid gap-3 md:grid-cols-2">
                     {[...fixture.predictions]
                       .sort((a, b) => b.points - a.points)
                       .map((prediction) => (
                         <div
                           key={`${fixture.fixtureId}-${prediction.userId}`}
-                          className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
+                          className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
                         >
                           <div>
                             <p className="font-bold">
@@ -810,24 +815,18 @@ export default async function LeaguePage({
 
                             <p className="mt-1 text-sm text-slate-400">
                               Predicted{" "}
-                              <span className="font-medium text-slate-200">
+                              <span className="text-slate-200">
                                 {prediction.predictedHome} -{" "}
                                 {prediction.predictedAway}
                               </span>
                             </p>
                           </div>
 
-                          <Badge
-                            className={
-                              prediction.points >= 5
-                                ? "border-yellow-300/20 bg-yellow-300/15 text-yellow-100 hover:bg-yellow-300/15"
-                                : prediction.points > 0
-                                  ? "border-emerald-400/20 bg-emerald-400/15 text-emerald-200 hover:bg-emerald-400/15"
-                                  : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/5"
-                            }
+                          <AppBadge
+                            variant={prediction.points > 0 ? "emerald" : "muted"}
                           >
                             {prediction.points} pts
-                          </Badge>
+                          </AppBadge>
                         </div>
                       ))}
                   </div>
@@ -838,27 +837,27 @@ export default async function LeaguePage({
         </CardContent>
       </Card>
 
-      <Card className="mt-6 border-white/10 bg-white/[0.03] text-white">
+      <Card className="mt-8 glass-card text-white">
         <CardContent className="p-6 sm:p-8">
           <div className="flex items-center gap-2">
             <BarChart3 className="h-6 w-6 text-emerald-300" />
-            <h2 className="text-2xl font-bold tracking-tight">
+            <h2 className="text-2xl font-black tracking-tight">
               Scoring rules
             </h2>
           </div>
 
           <div className="mt-5 grid gap-3 text-sm text-slate-300 md:grid-cols-4">
-            <div className="rounded-2xl border border-yellow-300/20 bg-yellow-300/10 p-4">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="text-xl font-black text-white">5 pts</p>
               <p className="mt-1">Exact scoreline</p>
             </div>
 
-            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="text-xl font-black text-white">3 pts</p>
               <p className="mt-1">Correct result + goal difference</p>
             </div>
 
-            <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
               <p className="text-xl font-black text-white">3 pts</p>
               <p className="mt-1">Correct draw, wrong score</p>
             </div>
