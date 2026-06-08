@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { AppBadge } from "@/components/ui/app-badge";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { TeamFlag, type TeamFlagData } from "@/components/team/team-flag";
 
 type FixturesPageProps = {
@@ -454,11 +455,14 @@ export default async function FixturesPage({
                             />
                           </div>
 
-                          <Button type="submit" className="h-12">
+                          <SubmitButton
+                            className="h-12"
+                            pendingText={prediction ? "Updating..." : "Saving..."}
+                          >
                             {prediction
                               ? "Update prediction"
                               : "Save prediction"}
-                          </Button>
+                          </SubmitButton>
                         </div>
                       </div>
                     </form>

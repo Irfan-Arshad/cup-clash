@@ -23,6 +23,7 @@ import { AppBadge } from "@/components/ui/app-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { SubmitButton } from "@/components/ui/submit-button";
 import {
   Select,
   SelectContent,
@@ -124,10 +125,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         actions={
           <div className="flex flex-col gap-3 sm:flex-row">
             <form action={recalculateAllFinishedFixtures}>
-              <Button type="submit" variant="secondary">
+              <SubmitButton
+                variant="secondary"
+                pendingText="Recalculating..."
+              >
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Recalculate all
-              </Button>
+              </SubmitButton>
             </form>
 
             <Button asChild>
@@ -231,9 +235,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                 </SelectContent>
               </Select>
 
-              <Button type="submit" className="h-12 w-full">
+              <SubmitButton className="h-12 w-full" pendingText="Saving winner...">
                 Save winner
-              </Button>
+              </SubmitButton>
             </form>
           </div>
         </CardContent>
@@ -446,9 +450,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                           />
                         </div>
 
-                        <Button type="submit" className="h-12">
+                        <SubmitButton
+                          className="h-12"
+                          pendingText={isFinished ? "Updating..." : "Saving..."}
+                        >
                           {isFinished ? "Update result" : "Save result"}
-                        </Button>
+                        </SubmitButton>
                       </div>
                     </form>
                   </div>

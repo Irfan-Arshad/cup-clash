@@ -21,6 +21,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { updateDisplayName } from "@/actions/profile";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 type ProfilePageProps = {
   searchParams: Promise<{
@@ -183,9 +184,9 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
                     />
                     </div>
 
-                    <Button type="submit" className="h-11 w-full">
+                    <SubmitButton className="h-11 w-full" pendingText="Updating...">
                     Update display name
-                    </Button>
+                    </SubmitButton>
                 </form>
                 </div>
 

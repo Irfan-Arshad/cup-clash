@@ -9,10 +9,10 @@ import {
   Users,
 } from "lucide-react";
 import { signIn } from "@/actions/auth";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 type LoginPageProps = {
   searchParams: Promise<{
@@ -135,10 +135,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                   </Link>
                 </div>
 
-                <Button type="submit" className="h-12 w-full">
+                <SubmitButton className="h-12 w-full" pendingText="Logging in...">
                   Log in
                   <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
+                </SubmitButton>
               </form>
 
               <div className="mt-6 rounded-3xl border border-white/10 bg-slate-950/45 p-4">

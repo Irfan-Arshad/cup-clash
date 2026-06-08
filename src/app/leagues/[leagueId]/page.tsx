@@ -21,6 +21,7 @@ import { AppBadge } from "@/components/ui/app-badge";
 import { StatCard } from "@/components/ui/stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { SubmitButton } from "@/components/ui/submit-button";
 import {
   Select,
   SelectContent,
@@ -569,9 +570,12 @@ export default async function LeaguePage({
                 </SelectContent>
               </Select>
 
-              <Button type="submit" className="h-12 w-full">
+              <SubmitButton
+                className="h-12 w-full"
+                pendingText={currentUserPick ? "Updating pick..." : "Saving pick..."}
+              >
                 {currentUserPick ? "Update winner pick" : "Save winner pick"}
-              </Button>
+              </SubmitButton>
             </form>
           </div>
         </CardContent>
