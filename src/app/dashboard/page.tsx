@@ -10,15 +10,19 @@ import {
   Sparkles,
   Target,
   Trophy,
+  User,
   Users,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { StatCard } from "@/components/ui/stat-card";
+import { AppBadge } from "@/components/ui/app-badge";
+import { TeamFlag, type TeamFlagData } from "@/components/team/team-flag";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AppShell } from "@/components/layout/app-shell";
 import { PageHero } from "@/components/layout/page-hero";
-import { Badge } from "@/components/ui/badge";
+
+type Team = TeamFlagData;
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -79,12 +83,14 @@ export default async function DashboardPage() {
       home_team:teams!fixtures_home_team_id_fkey (
         name,
         short_name,
-        flag_emoji
+        flag_emoji,
+        flag_url
       ),
       away_team:teams!fixtures_away_team_id_fkey (
         name,
         short_name,
-        flag_emoji
+        flag_emoji,
+        flag_url
       )
     `
     )
@@ -121,22 +127,18 @@ export default async function DashboardPage() {
       0
     ) || 0;
 
-  const finishedPredictionsWithPoints =
-    userPredictions?.filter((prediction) => (prediction.points || 0) > 0)
-      .length || 0;
-
   const nextFixture = upcomingFixtures[0];
 
   const nextFixtureHomeTeam = nextFixture
-    ? Array.isArray(nextFixture.home_team)
-      ? nextFixture.home_team[0]
-      : nextFixture.home_team
+    ? (Array.isArray(nextFixture.home_team)
+        ? nextFixture.home_team[0]
+        : nextFixture.home_team) as Team | null
     : null;
 
   const nextFixtureAwayTeam = nextFixture
-    ? Array.isArray(nextFixture.away_team)
-      ? nextFixture.away_team[0]
-      : nextFixture.away_team
+    ? (Array.isArray(nextFixture.away_team)
+        ? nextFixture.away_team[0]
+        : nextFixture.away_team) as Team | null
     : null;
 
   const nextFixturePredicted = nextFixture
@@ -156,6 +158,13 @@ export default async function DashboardPage() {
         description="Your Cup Clash command centre. Check your leagues, track your predictions, and stay ahead of the group chat."
         actions={
           <div className="flex flex-col gap-3 sm:flex-row">
+            <Button asChild variant="secondary">
+              <Link href="/profile">
+                <User className="mr-2 h-4 w-4" />
+                Profile
+              </Link>
+            </Button>
+
             <Button asChild variant="secondary">
               <Link href="/leagues/join">Join league</Link>
             </Button>
@@ -254,33 +263,57 @@ export default async function DashboardPage() {
               <div className="mt-5">
                 <div className="flex flex-wrap items-center gap-2">
                   {nextFixture.match_number && (
-                    <Badge variant="outline">
+                    <AppBadge variant="muted">
                       Match {nextFixture.match_number}
-                    </Badge>
+                    </AppBadge>
                   )}
 
                   {nextFixture.group_name && (
-                    <Badge variant="secondary">{nextFixture.group_name}</Badge>
+                    <AppBadge variant="slate">
+                      {nextFixture.group_name}
+                    </AppBadge>
                   )}
 
-                  <Badge
-                    className={
-                      nextFixturePredicted
-                        ? "border-emerald-400/20 bg-emerald-400/15 text-emerald-200 hover:bg-emerald-400/15"
-                        : "border-yellow-300/20 bg-yellow-300/15 text-yellow-100 hover:bg-yellow-300/15"
-                    }
-                  >
+                  <AppBadge variant={nextFixturePredicted ? "emerald" : "gold"}>
                     {nextFixturePredicted ? "Predicted" : "Needs pick"}
-                  </Badge>
+                  </AppBadge>
                 </div>
 
-                <p className="mt-4 text-2xl font-black tracking-tight">
-                  {nextFixtureHomeTeam?.flag_emoji} {nextFixtureHomeTeam?.name}{" "}
-                  <span className="text-slate-500">vs</span>{" "}
-                  {nextFixtureAwayTeam?.flag_emoji} {nextFixtureAwayTeam?.name}
-                </p>
+                <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+                  <div className="flex items-center gap-3">
+                    <TeamFlag team={nextFixtureHomeTeam} size="sm" />
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
+                        {nextFixtureHomeTeam?.short_name}
+                      </p>
+                      <p className="mt-1 text-lg font-black">
+                        {nextFixtureHomeTeam?.name}
+                      </p>
+                    </div>
+                  </div>
 
-                <p className="mt-3 flex items-center gap-2 text-sm text-slate-400">
+                  <div className="flex justify-start sm:justify-center">
+                    <div className="rounded-full border border-white/10 bg-white px-3 py-1.5 text-xs font-black uppercase tracking-[0.24em] text-slate-950">
+                      vs
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 sm:justify-end sm:text-right">
+                    <div className="sm:order-2">
+                      <TeamFlag team={nextFixtureAwayTeam} size="sm" />
+                    </div>
+                    <div className="sm:order-1">
+                      <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
+                        {nextFixtureAwayTeam?.short_name}
+                      </p>
+                      <p className="mt-1 text-lg font-black">
+                        {nextFixtureAwayTeam?.name}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="mt-5 flex items-center gap-2 text-sm text-slate-400">
                   <CalendarDays className="h-4 w-4" />
                   {new Date(nextFixture.kickoff_at).toLocaleString("en-GB", {
                     dateStyle: "medium",
@@ -357,9 +390,12 @@ export default async function DashboardPage() {
                           {league.name}
                         </h3>
 
-                        <Badge className="rounded-full border-white/15 bg-white/10 px-2.5 py-1 text-xs font-semibold capitalize text-slate-100 hover:bg-white/10">
+                        <AppBadge
+                          variant={role === "owner" ? "gold" : "muted"}
+                          className="capitalize"
+                        >
                           {role}
-                        </Badge>
+                        </AppBadge>
                       </div>
 
                       <p className="mt-3 text-sm text-slate-400">
