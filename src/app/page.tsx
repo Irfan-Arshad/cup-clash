@@ -119,21 +119,21 @@ export default function HomePage() {
                   {[
                     {
                       rank: 1,
-                      name: "Ayaan",
+                      name: "Aristotle",
                       points: 28,
-                      badge: "Exact score king",
+                      badge: "Philosopher",
                     },
                     {
                       rank: 2,
-                      name: "Mohamed",
+                      name: "Newton",
                       points: 24,
-                      badge: "Still in the race",
+                      badge: "Follow the forces",
                     },
                     {
                       rank: 3,
-                      name: "Zain",
+                      name: "Edison",
                       points: 19,
-                      badge: "Danger man",
+                      badge: "Lightning round",
                     },
                   ].map((player) => (
                     <div
