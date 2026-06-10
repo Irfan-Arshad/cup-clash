@@ -468,7 +468,7 @@ export default async function LeaguePage({
         </div>
       )}
 
-      <div className="mt-6 grid gap-4 md:grid-cols-4">
+      <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard
           title="Members"
           value={leaderboard.length}
@@ -517,6 +517,20 @@ export default async function LeaguePage({
         </Card>
       </div>
 
+      <div className="mt-4 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+        <Button asChild variant="secondary" className="h-10 px-3 text-sm">
+          <a href="#leaderboard">Table</a>
+        </Button>
+
+        <Button asChild variant="secondary" className="h-10 px-3 text-sm">
+          <a href="#winner-pick">Winner pick</a>
+        </Button>
+
+        <Button asChild variant="secondary" className="h-10 px-3 text-sm">
+          <a href="#breakdown">Breakdown</a>
+        </Button>
+      </div>
+
       {topPlayer && (
         <Card className="mt-6 pitch-card text-white">
           <CardContent className="flex flex-col justify-between gap-4 p-6 sm:flex-row sm:items-center">
@@ -541,7 +555,117 @@ export default async function LeaguePage({
         </Card>
       )}
 
-      <Card className="mt-8 pitch-card text-white">
+      <Card id="leaderboard" className="mt-8 glass-card text-white">
+        <CardContent className="p-6 sm:p-8">
+          <div className="flex items-center gap-2">
+            <Trophy className="h-6 w-6 text-yellow-300" />
+            <h2 className="text-2xl font-black tracking-tight">
+              Leaderboard
+            </h2>
+          </div>
+
+          {sortedLeaderboard.length === 0 ? (
+            <p className="mt-5 text-slate-300">No members yet.</p>
+          ) : (
+            <div className="mt-5 space-y-3">
+              {sortedLeaderboard.map((row, index) => {
+                const rank = index + 1;
+                const isCurrentUser = row.userId === user.id;
+
+                return (
+                  <div
+                    key={row.userId}
+                    className={`rounded-3xl border px-3 py-3 sm:px-5 sm:py-5 ${getRankClasses(
+                      rank,
+                      isCurrentUser
+                    )}`}
+                  >
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="flex items-center gap-3 sm:gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/10 sm:h-14 sm:w-14">
+                          {getRankIcon(rank)}
+                        </div>
+
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-lg font-black">
+                              #{rank} {row.displayName}
+                            </p>
+
+                            {isCurrentUser && (
+                              <AppBadge variant="emerald">You</AppBadge>
+                            )}
+
+                            <AppBadge
+                              variant="muted"
+                              className="capitalize"
+                            >
+                              {row.role}
+                            </AppBadge>
+
+                            <AppBadge
+                              variant={
+                                rank === 1
+                                  ? "gold"
+                                  : rank === 2
+                                    ? "slate"
+                                    : rank === 3
+                                      ? "gold"
+                                      : "muted"
+                              }
+                            >
+                              {getRankLabel(rank)}
+                            </AppBadge>
+                          </div>
+
+                          <p className="mt-2 text-sm text-slate-400">
+                            {row.predictionsMade} predictions made • Winner
+                            pick:{" "}
+                            <span className="text-slate-200">
+                              {row.winnerPick || "Not picked yet"}
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 text-center sm:min-w-[340px] sm:gap-3">
+                        <div className="score-pill rounded-2xl px-2 py-2 sm:px-4 sm:py-3">
+                          <p className="text-xl font-black sm:text-2xl">
+                            {row.totalPoints}
+                          </p>
+                          <p className="text-[10px] uppercase tracking-[0.12em] text-slate-400 sm:text-xs sm:tracking-[0.18em]">
+                            total pts
+                          </p>
+                        </div>
+
+                        <div className="score-pill rounded-2xl px-2 py-2 sm:px-4 sm:py-3">
+                          <p className="text-xl font-black sm:text-2xl">
+                            {row.exactScores}
+                          </p>
+                          <p className="text-[10px] uppercase tracking-[0.12em] text-slate-400 sm:text-xs sm:tracking-[0.18em]">
+                            exact
+                          </p>
+                        </div>
+
+                        <div className="score-pill rounded-2xl px-2 py-2 sm:px-4 sm:py-3">
+                          <p className="text-xl font-black sm:text-2xl">
+                            {row.correctResults}
+                          </p>
+                          <p className="text-[10px] uppercase tracking-[0.12em] text-slate-400 sm:text-xs sm:tracking-[0.18em]">
+                            outcomes
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card id="winner-pick" className="mt-8 pitch-card text-white">
         <CardContent className="p-6 sm:p-8">
           <div className="grid gap-6 lg:grid-cols-[1fr_420px] lg:items-end">
             <div>
@@ -595,7 +719,9 @@ export default async function LeaguePage({
 
               <SubmitButton
                 className="h-12 w-full"
-                pendingText={currentUserPick ? "Updating pick..." : "Saving pick..."}
+                pendingText={
+                  currentUserPick ? "Updating pick..." : "Saving pick..."
+                }
               >
                 {currentUserPick ? "Update winner pick" : "Save winner pick"}
               </SubmitButton>
@@ -639,261 +765,159 @@ export default async function LeaguePage({
         </CardContent>
       </Card>
 
-      <Card className="mt-8 glass-card text-white">
-        <CardContent className="p-6 sm:p-8">
-          <div className="flex items-center gap-2">
-            <Trophy className="h-6 w-6 text-yellow-300" />
-            <h2 className="text-2xl font-black tracking-tight">
-              Leaderboard
-            </h2>
-          </div>
+      <Card id="breakdown" className="mt-8 fixture-card text-white">
+        <CardContent className="p-5 sm:p-6">
+          <details>
+            <summary className="flex cursor-pointer list-none items-center gap-2">
+              <Target className="h-6 w-6 text-emerald-300" />
+              <h2 className="text-2xl font-black tracking-tight">
+                Prediction breakdown
+              </h2>
+            </summary>
 
-          {sortedLeaderboard.length === 0 ? (
-            <p className="mt-5 text-slate-300">No members yet.</p>
-          ) : (
-            <div className="mt-5 space-y-3">
-              {sortedLeaderboard.map((row, index) => {
-                const rank = index + 1;
-                const isCurrentUser = row.userId === user.id;
-
-                return (
+            {finishedFixtureBreakdown.length === 0 ? (
+              <p className="mt-4 text-slate-300">
+                Prediction breakdowns will appear once fixtures are finished.
+              </p>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {finishedFixtureBreakdown.map((fixture) => (
                   <div
-                    key={row.userId}
-                    className={`rounded-3xl border px-5 py-5 ${getRankClasses(
-                      rank,
-                      isCurrentUser
-                    )}`}
+                    key={fixture.fixtureId}
+                    className="rounded-2xl border border-white/10 bg-slate-950/45 p-4"
                   >
-                    <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/10">
-                          {getRankIcon(rank)}
+                    <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-3 flex flex-wrap items-center gap-2">
+                          {fixture.matchNumber && (
+                            <AppBadge variant="muted">
+                              Match {fixture.matchNumber}
+                            </AppBadge>
+                          )}
+
+                          {fixture.groupName && (
+                            <AppBadge variant="slate">
+                              {fixture.groupName}
+                            </AppBadge>
+                          )}
+
+                          {fixture.venue && (
+                            <AppBadge variant="muted">
+                              {fixture.venue}
+                            </AppBadge>
+                          )}
                         </div>
 
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-lg font-black">
-                              #{rank} {row.displayName}
-                            </p>
+                        <div className="grid gap-4 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+                          <div className="flex items-center gap-3">
+                            <TeamFlag team={fixture.homeTeam} size="sm" />
 
-                            {isCurrentUser && (
-                              <AppBadge variant="emerald">You</AppBadge>
-                            )}
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
+                                {fixture.homeTeam?.short_name}
+                              </p>
+                              <h3 className="mt-1 text-lg font-black tracking-tight">
+                                {fixture.homeTeam?.name}
+                              </h3>
+                            </div>
+                          </div>
 
-                            <AppBadge
-                              variant="muted"
-                              className="capitalize"
-                            >
-                              {row.role}
-                            </AppBadge>
+                          <div className="flex justify-start sm:justify-center">
+                            <div className="rounded-full border border-white/10 bg-white px-3 py-1.5 text-xs font-black uppercase tracking-[0.24em] text-slate-950">
+                              {fixture.homeScore} - {fixture.awayScore}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 sm:justify-end sm:text-right">
+                            <div className="sm:order-2">
+                              <TeamFlag team={fixture.awayTeam} size="sm" />
+                            </div>
+
+                            <div className="sm:order-1">
+                              <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
+                                {fixture.awayTeam?.short_name}
+                              </p>
+                              <h3 className="mt-1 text-lg font-black tracking-tight">
+                                {fixture.awayTeam?.name}
+                              </h3>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-2 md:grid-cols-2">
+                      {[...fixture.predictions]
+                        .sort((a, b) => b.points - a.points)
+                        .map((prediction) => (
+                          <div
+                            key={`${fixture.fixtureId}-${prediction.userId}`}
+                            className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
+                          >
+                            <div>
+                              <p className="font-bold">
+                                {prediction.displayName}
+                              </p>
+
+                              <p className="mt-1 text-sm text-slate-400">
+                                Predicted{" "}
+                                <span className="text-slate-200">
+                                  {prediction.predictedHome} -{" "}
+                                  {prediction.predictedAway}
+                                </span>
+                              </p>
+                            </div>
 
                             <AppBadge
                               variant={
-                                rank === 1
-                                  ? "gold"
-                                  : rank === 2
-                                    ? "slate"
-                                    : rank === 3
-                                      ? "gold"
-                                      : "muted"
+                                prediction.points > 0 ? "emerald" : "muted"
                               }
                             >
-                              {getRankLabel(rank)}
+                              {prediction.points} pts
                             </AppBadge>
                           </div>
-
-                          <p className="mt-2 text-sm text-slate-400">
-                            {row.predictionsMade} predictions made • Winner
-                            pick:{" "}
-                            <span className="text-slate-200">
-                              {row.winnerPick || "Not picked yet"}
-                            </span>
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-3 text-center sm:min-w-[340px]">
-                        <div className="score-pill rounded-2xl px-4 py-3">
-                          <p className="text-2xl font-black">
-                            {row.totalPoints}
-                          </p>
-                          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-                            total pts
-                          </p>
-                        </div>
-
-                        <div className="score-pill rounded-2xl px-4 py-3">
-                          <p className="text-2xl font-black">
-                            {row.exactScores}
-                          </p>
-                          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-                            exact
-                          </p>
-                        </div>
-
-                        <div className="score-pill rounded-2xl px-4 py-3">
-                          <p className="text-2xl font-black">
-                            {row.correctResults}
-                          </p>
-                          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
-                            outcomes
-                          </p>
-                        </div>
-                      </div>
+                        ))}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="mt-8 fixture-card text-white">
-        <CardContent className="p-6 sm:p-8">
-          <div className="flex items-center gap-2">
-            <Target className="h-6 w-6 text-emerald-300" />
-            <h2 className="text-2xl font-black tracking-tight">
-              Prediction breakdown
-            </h2>
-          </div>
-
-          {finishedFixtureBreakdown.length === 0 ? (
-            <p className="mt-5 text-slate-300">
-              Prediction breakdowns will appear once fixtures are finished.
-            </p>
-          ) : (
-            <div className="mt-5 space-y-4">
-              {finishedFixtureBreakdown.map((fixture) => (
-                <div
-                  key={fixture.fixtureId}
-                  className="rounded-3xl border border-white/10 bg-slate-950/45 p-5"
-                >
-                  <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
-                    <div className="min-w-0 flex-1">
-                      <div className="mb-4 flex flex-wrap items-center gap-2">
-                        {fixture.matchNumber && (
-                          <AppBadge variant="muted">
-                            Match {fixture.matchNumber}
-                          </AppBadge>
-                        )}
-
-                        {fixture.groupName && (
-                          <AppBadge variant="slate">
-                            {fixture.groupName}
-                          </AppBadge>
-                        )}
-
-                        {fixture.venue && (
-                          <AppBadge variant="muted">{fixture.venue}</AppBadge>
-                        )}
-                      </div>
-
-                      <div className="grid gap-5 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
-                        <div className="flex items-center gap-4">
-                          <TeamFlag team={fixture.homeTeam} size="sm" />
-
-                          <div>
-                            <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
-                              {fixture.homeTeam?.short_name}
-                            </p>
-                            <h3 className="mt-1 text-xl font-black tracking-tight">
-                              {fixture.homeTeam?.name}
-                            </h3>
-                          </div>
-                        </div>
-
-                        <div className="flex justify-start sm:justify-center">
-                          <div className="rounded-full border border-white/10 bg-white px-3 py-1.5 text-xs font-black uppercase tracking-[0.24em] text-slate-950">
-                            {fixture.homeScore} - {fixture.awayScore}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-4 sm:justify-end sm:text-right">
-                          <div className="sm:order-2">
-                            <TeamFlag team={fixture.awayTeam} size="sm" />
-                          </div>
-
-                          <div className="sm:order-1">
-                            <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
-                              {fixture.awayTeam?.short_name}
-                            </p>
-                            <h3 className="mt-1 text-xl font-black tracking-tight">
-                              {fixture.awayTeam?.name}
-                            </h3>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 grid gap-3 md:grid-cols-2">
-                    {[...fixture.predictions]
-                      .sort((a, b) => b.points - a.points)
-                      .map((prediction) => (
-                        <div
-                          key={`${fixture.fixtureId}-${prediction.userId}`}
-                          className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
-                        >
-                          <div>
-                            <p className="font-bold">
-                              {prediction.displayName}
-                            </p>
-
-                            <p className="mt-1 text-sm text-slate-400">
-                              Predicted{" "}
-                              <span className="text-slate-200">
-                                {prediction.predictedHome} -{" "}
-                                {prediction.predictedAway}
-                              </span>
-                            </p>
-                          </div>
-
-                          <AppBadge
-                            variant={prediction.points > 0 ? "emerald" : "muted"}
-                          >
-                            {prediction.points} pts
-                          </AppBadge>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </details>
         </CardContent>
       </Card>
 
       <Card className="mt-8 glass-card text-white">
         <CardContent className="p-6 sm:p-8">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="h-6 w-6 text-emerald-300" />
-            <h2 className="text-2xl font-black tracking-tight">
-              Scoring rules
-            </h2>
-          </div>
+          <details>
+            <summary className="flex cursor-pointer list-none items-center gap-2">
+              <BarChart3 className="h-6 w-6 text-emerald-300" />
+              <h2 className="text-2xl font-black tracking-tight">
+                Scoring rules
+              </h2>
+            </summary>
 
-          <div className="mt-5 grid gap-3 text-sm text-slate-300 md:grid-cols-4">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xl font-black text-white">5 pts</p>
-              <p className="mt-1">Exact scoreline</p>
-            </div>
+            <div className="mt-5 grid gap-3 text-sm text-slate-300 md:grid-cols-4">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xl font-black text-white">5 pts</p>
+                <p className="mt-1">Exact scoreline</p>
+              </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xl font-black text-white">3 pts</p>
-              <p className="mt-1">Correct result + goal difference</p>
-            </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xl font-black text-white">3 pts</p>
+                <p className="mt-1">Correct result + goal difference</p>
+              </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xl font-black text-white">3 pts</p>
-              <p className="mt-1">Correct draw, wrong score</p>
-            </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xl font-black text-white">3 pts</p>
+                <p className="mt-1">Correct draw, wrong score</p>
+              </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xl font-black text-white">2 pts</p>
-              <p className="mt-1">Correct result only</p>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <p className="text-xl font-black text-white">2 pts</p>
+                <p className="mt-1">Correct result only</p>
+              </div>
             </div>
-          </div>
+          </details>
         </CardContent>
       </Card>
     </AppShell>
