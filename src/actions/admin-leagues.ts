@@ -59,16 +59,26 @@ export async function deleteLeague(formData: FormData) {
 
   const supabase = await createClient();
 
-  const { error } = await supabase.from("leagues").delete().eq("id", leagueId);
+const { data, error } = await supabase
+  .from("leagues")
+  .delete()
+  .eq("id", leagueId)
+  .select("id");
 
-  if (error) {
-    redirect(`/admin/leagues?error=${encodeURIComponent(error.message)}`);
-  }
+if (error) {
+  redirect(`/admin/leagues?error=${encodeURIComponent(error.message)}`);
+}
 
-  revalidatePath("/admin/leagues");
-  revalidatePath("/dashboard");
+if (!data || data.length === 0) {
+  redirect(
+    "/admin/leagues?error=League%20could%20not%20be%20deleted.%20Check%20admin%20permissions."
+  );
+}
 
-  redirect("/admin/leagues?success=League%20deleted");
+revalidatePath("/admin/leagues");
+revalidatePath("/dashboard");
+
+redirect("/admin/leagues?success=League%20deleted");
 }
 
 export async function removeLeagueMember(formData: FormData) {
@@ -87,14 +97,20 @@ export async function removeLeagueMember(formData: FormData) {
 
   const supabase = await createClient();
 
-  const { error } = await supabase
-    .from("league_members")
-    .delete()
-    .eq("league_id", leagueId)
-    .eq("user_id", userId);
+  const { data, error } = await supabase
+    .from("leagues")
+    .update({ name })
+    .eq("id", leagueId)
+    .select("id");
 
   if (error) {
-    redirect(`/admin/leagues/${leagueId}?error=${encodeURIComponent(error.message)}`);
+    redirect(`/admin/leagues?error=${encodeURIComponent(error.message)}`);
+  }
+
+  if (!data || data.length === 0) {
+    redirect(
+      "/admin/leagues?error=League%20could%20not%20be%20updated.%20Check%20admin%20permissions."
+    );
   }
 
   revalidatePath("/admin/leagues");
