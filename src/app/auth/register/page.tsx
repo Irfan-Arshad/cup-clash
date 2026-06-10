@@ -109,6 +109,7 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
                   <Input
                     id="displayName"
                     name="displayName"
+                    autoComplete="name"
                     placeholder="Mohamed"
                     required
                     className="h-12 border-white/10 bg-slate-950"
@@ -121,6 +122,7 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
                     id="email"
                     name="email"
                     type="email"
+                    autoComplete="email"
                     placeholder="you@example.com"
                     required
                     className="h-12 border-white/10 bg-slate-950"
@@ -133,6 +135,7 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
                     id="password"
                     name="password"
                     type="password"
+                    autoComplete="new-password"
                     required
                     minLength={6}
                     className="h-12 border-white/10 bg-slate-950"

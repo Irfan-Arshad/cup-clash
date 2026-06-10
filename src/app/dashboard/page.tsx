@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AppShell } from "@/components/layout/app-shell";
 import { PageHero } from "@/components/layout/page-hero";
+import { CopyInviteCode } from "@/components/league/copy-invite-code";
 
 type Team = TeamFlagData;
 
@@ -407,12 +408,20 @@ export default async function DashboardPage() {
                       </p>
                     </div>
 
-                    <Button asChild variant="secondary" size="sm">
-                      <Link href={`/leagues/${league.id}`}>
-                        Open
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Link>
-                    </Button>
+                    <div className="flex flex-col gap-2 sm:items-end">
+                      <CopyInviteCode
+                        inviteCode={league.invite_code}
+                        leagueName={league.name}
+                        size="sm"
+                      />
+
+                      <Button asChild variant="secondary" size="sm">
+                        <Link href={`/leagues/${league.id}`}>
+                          Open
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

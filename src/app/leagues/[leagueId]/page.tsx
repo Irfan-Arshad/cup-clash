@@ -76,6 +76,11 @@ type FinishedFixtureBreakdown = {
   }[];
 };
 
+type PredictionCountRow = {
+  member_user_id: string;
+  predictions_made: number | string | null;
+};
+
 function getResult(home: number, away: number) {
   if (home > away) return "HOME";
   if (away > home) return "AWAY";
@@ -145,6 +150,20 @@ export default async function LeaguePage({
     .order("joined_at", { ascending: true });
 
   const userIds = memberRows?.map((member) => member.user_id) || [];
+
+  const { data: predictionCountRows } = await supabase.rpc(
+    "get_league_prediction_counts",
+    {
+      target_league_id: leagueId,
+    }
+  );
+
+  const predictionCountMap = new Map<string, number>(
+    ((predictionCountRows || []) as PredictionCountRow[]).map((row) => [
+      row.member_user_id,
+      Number(row.predictions_made || 0),
+    ])
+  );
 
   const { data: profileRows } =
     userIds.length > 0
@@ -336,7 +355,8 @@ export default async function LeaguePage({
         fixturePoints,
         tournamentPickPoints,
         winnerPick: tournamentPickMap.get(member.user_id)?.teamName || null,
-        predictionsMade: memberPredictions.length,
+        predictionsMade:
+          predictionCountMap.get(member.user_id) ?? memberPredictions.length,
         exactScores,
         correctResults,
       };
@@ -362,7 +382,10 @@ export default async function LeaguePage({
       ? prediction.fixtures[0]
       : prediction.fixtures;
 
-    if (!fixture || fixture.status !== "finished") {
+    const isKickoffPassed =
+      fixture?.kickoff_at && new Date(fixture.kickoff_at) <= new Date();
+
+    if (!fixture || (!isKickoffPassed && fixture.status !== "finished")) {
       continue;
     }
 

@@ -121,13 +121,13 @@ export default function HomePage() {
                       rank: 1,
                       name: "Aristotle",
                       points: 28,
-                      badge: "Philosopher",
+                      badge: "Feel the ball, be the ball",
                     },
                     {
                       rank: 2,
-                      name: "Newton",
+                      name: "Skywalker",
                       points: 24,
-                      badge: "Follow the forces",
+                      badge: "Trust in the force",
                     },
                     {
                       rank: 3,

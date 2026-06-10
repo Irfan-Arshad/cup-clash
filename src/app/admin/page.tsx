@@ -137,6 +137,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             <Button asChild>
               <Link href="/dashboard">Back to dashboard</Link>
             </Button>
+
+            <Button asChild variant="secondary">
+              <Link href="/admin/leagues">
+                <Shield className="mr-2 h-4 w-4" />
+                Manage leagues
+              </Link>
+            </Button>
           </div>
         }
       />
