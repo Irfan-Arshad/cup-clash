@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AppBadge } from "@/components/ui/app-badge";
 import { TeamFlag, type TeamFlagData } from "@/components/team/team-flag";
+import { formatUkKickoff } from "@/lib/format-date";
 
 type FixturesPageProps = {
   searchParams: Promise<{
@@ -315,10 +316,7 @@ export default async function FixturesPage({
                       <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-slate-400">
                         <span className="flex items-center gap-1.5">
                           <CalendarDays className="h-4 w-4" />
-                          {kickoffAt.toLocaleString("en-GB", {
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                          })}
+                          {formatUkKickoff(fixture.kickoff_at)}
                         </span>
 
                         {fixture.venue && (

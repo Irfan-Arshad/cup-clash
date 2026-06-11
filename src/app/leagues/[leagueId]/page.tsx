@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
   BarChart3,
+  CalendarDays,
   Copy,
   Crown,
   Medal,
@@ -22,6 +23,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { formatUkKickoff } from "@/lib/format-date";
 import {
   Select,
   SelectContent,
@@ -60,6 +62,7 @@ type LeaderboardRow = {
 
 type FinishedFixtureBreakdown = {
   fixtureId: number;
+  kickoff_at: string;
   homeTeam: Team | null;
   awayTeam: Team | null;
   homeScore: number | null;
@@ -404,6 +407,7 @@ export default async function LeaguePage({
     if (!finishedFixturePredictionGroups.has(fixture.id)) {
       finishedFixturePredictionGroups.set(fixture.id, {
         fixtureId: fixture.id,
+        kickoff_at: fixture.kickoff_at,
         matchNumber: fixture.match_number,
         groupName: fixture.group_name,
         venue: fixture.venue,
@@ -800,6 +804,11 @@ export default async function LeaguePage({
                               {fixture.groupName}
                             </AppBadge>
                           )}
+
+                          <AppBadge variant="muted">
+                            <CalendarDays className="mr-1 h-3 w-3" />
+                            {formatUkKickoff(fixture.kickoff_at)}
+                          </AppBadge>
 
                           {fixture.venue && (
                             <AppBadge variant="muted">

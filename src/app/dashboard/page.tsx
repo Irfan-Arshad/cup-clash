@@ -22,6 +22,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AppShell } from "@/components/layout/app-shell";
 import { PageHero } from "@/components/layout/page-hero";
 import { CopyInviteCode } from "@/components/league/copy-invite-code";
+import { formatUkKickoff } from "@/lib/format-date";
 
 type Team = TeamFlagData;
 
@@ -316,10 +317,7 @@ export default async function DashboardPage() {
 
                 <p className="mt-5 flex items-center gap-2 text-sm text-slate-400">
                   <CalendarDays className="h-4 w-4" />
-                  {new Date(nextFixture.kickoff_at).toLocaleString("en-GB", {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })}
+                  {formatUkKickoff(nextFixture.kickoff_at)}
                 </p>
               </div>
             ) : (

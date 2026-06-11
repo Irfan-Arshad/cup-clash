@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { formatUkKickoff } from "@/lib/format-date";
 import {
   Select,
   SelectContent,
@@ -371,13 +372,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                         <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-slate-400">
                           <span className="flex items-center gap-1.5">
                             <CalendarDays className="h-4 w-4" />
-                            {new Date(fixture.kickoff_at).toLocaleString(
-                              "en-GB",
-                              {
-                                dateStyle: "medium",
-                                timeStyle: "short",
-                              }
-                            )}
+                            {formatUkKickoff(fixture.kickoff_at)}
                           </span>
 
                           {fixture.venue && (
