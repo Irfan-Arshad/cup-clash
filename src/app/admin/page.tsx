@@ -33,6 +33,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+export const dynamic = "force-dynamic";
+
 type AdminPageProps = {
   searchParams: Promise<{
     error?: string;

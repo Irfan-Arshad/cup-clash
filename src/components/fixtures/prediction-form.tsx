@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CheckCircle2, Target } from "lucide-react";
 import {
   savePrediction,
@@ -27,6 +28,7 @@ export function PredictionForm({
   initialHomeScore,
   initialAwayScore,
 }: PredictionFormProps) {
+  const router = useRouter();
   const [state, formAction] = useActionState(savePrediction, initialState);
 
   const [savedHomeScore, setSavedHomeScore] = useState<number | null>(
@@ -45,8 +47,9 @@ export function PredictionForm({
     ) {
       setSavedHomeScore(state.predictedHomeScore);
       setSavedAwayScore(state.predictedAwayScore);
+      router.refresh();
     }
-  }, [state, fixtureId]);
+  }, [state, fixtureId, router]);
 
   const hasSavedPrediction =
     savedHomeScore !== null && savedAwayScore !== null;

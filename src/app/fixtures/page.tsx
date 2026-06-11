@@ -20,6 +20,8 @@ import { AppBadge } from "@/components/ui/app-badge";
 import { TeamFlag, type TeamFlagData } from "@/components/team/team-flag";
 import { formatUkKickoff } from "@/lib/format-date";
 
+export const dynamic = "force-dynamic";
+
 type FixturesPageProps = {
   searchParams: Promise<{
     error?: string;

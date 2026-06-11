@@ -24,6 +24,8 @@ import { PageHero } from "@/components/layout/page-hero";
 import { CopyInviteCode } from "@/components/league/copy-invite-code";
 import { formatUkKickoff } from "@/lib/format-date";
 
+export const dynamic = "force-dynamic";
+
 type Team = TeamFlagData;
 
 export default async function DashboardPage() {

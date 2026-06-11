@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { removeLeagueMember } from "@/actions/admin-leagues";
 import { requireAdmin } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { CopyInviteCode } from "@/components/league/copy-invite-code";
 import { AppShell } from "@/components/layout/app-shell";
 import { PageHero } from "@/components/layout/page-hero";
@@ -44,34 +44,38 @@ export default async function AdminLeagueDetailsPage({
     redirect("/dashboard");
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
-  const { data: league } = await supabase
-    .from("leagues")
-    .select("id, name, invite_code, created_at")
-    .eq("id", leagueId)
-    .single();
+const { data: league, error: leagueError } = await supabase
+  .from("leagues")
+  .select("id, name, invite_code, created_at")
+  .eq("id", leagueId)
+  .single();
 
-  if (!league) {
-    notFound();
-  }
+if (leagueError || !league) {
+  notFound();
+}
 
-  const { data: members } = await supabase
-    .from("league_members")
-    .select(
-      `
-      id,
-      user_id,
-      role,
-      joined_at,
-      profiles (
-        display_name,
-        email
-      )
-    `
-    )
-    .eq("league_id", leagueId)
-    .order("joined_at", { ascending: true });
+const { data: members, error: membersError } = await supabase
+  .from("league_members")
+  .select("id, user_id, role, joined_at")
+  .eq("league_id", leagueId)
+  .order("joined_at", { ascending: true });
+
+const memberUserIds = (members || []).map((member) => member.user_id);
+
+const { data: profiles, error: profilesError } = memberUserIds.length
+  ? await supabase
+      .from("profiles")
+      .select("id, display_name, email")
+      .in("id", memberUserIds)
+  : { data: [], error: null };
+
+const profileMap = new Map(
+  (profiles || []).map((profile) => [profile.id, profile])
+);
+
+const memberLoadError = membersError?.message || profilesError?.message;
 
   return (
     <AppShell isAdmin>
@@ -155,6 +159,12 @@ export default async function AdminLeagueDetailsPage({
         </div>
       )}
 
+      {memberLoadError && (
+        <div className="mt-6 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          Failed to load members: {memberLoadError}
+        </div>
+      )}
+
       <div className="mt-4 grid grid-cols-2 gap-3 sm:mt-6 sm:gap-4 md:grid-cols-3">
         <Card className="pitch-card text-white">
           <CardContent className="p-4 sm:p-5">
@@ -204,9 +214,7 @@ export default async function AdminLeagueDetailsPage({
 
           <div className="mt-4 space-y-2 sm:mt-5 sm:space-y-3">
             {members?.map((member) => {
-              const profile = Array.isArray(member.profiles)
-                ? member.profiles[0]
-                : member.profiles;
+              const profile = profileMap.get(member.user_id);
 
               return (
                 <div

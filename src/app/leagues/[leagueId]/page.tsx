@@ -33,6 +33,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+export const dynamic = "force-dynamic";
+
 type LeaguePageProps = {
   params: Promise<{
     leagueId: string;

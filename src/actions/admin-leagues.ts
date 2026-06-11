@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function updateLeagueName(formData: FormData) {
   const admin = await requireAdmin();
@@ -95,21 +96,24 @@ export async function removeLeagueMember(formData: FormData) {
     redirect("/admin/leagues?error=Member%20not%20found");
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
-  const { data, error } = await supabase
-    .from("leagues")
-    .update({ name })
-    .eq("id", leagueId)
+    const { data, error } = await supabase
+    .from("league_members")
+    .delete()
+    .eq("league_id", leagueId)
+    .eq("user_id", userId)
     .select("id");
 
   if (error) {
-    redirect(`/admin/leagues?error=${encodeURIComponent(error.message)}`);
+    redirect(
+      `/admin/leagues/${leagueId}?error=${encodeURIComponent(error.message)}`
+    );
   }
 
   if (!data || data.length === 0) {
     redirect(
-      "/admin/leagues?error=League%20could%20not%20be%20updated.%20Check%20admin%20permissions."
+      `/admin/leagues/${leagueId}?error=Member%20could%20not%20be%20removed`
     );
   }
 
