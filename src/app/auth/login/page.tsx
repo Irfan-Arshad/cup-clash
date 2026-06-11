@@ -26,11 +26,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <main className="app-bg min-h-screen text-white">
-      <section className="mx-auto grid min-h-screen w-full max-w-6xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_420px] lg:px-8">
-        <div className="flex flex-col justify-center">
-          <Link href="/" className="mb-10 flex w-fit items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10">
-              <Trophy className="h-6 w-6 text-emerald-300" />
+      <section className="mx-auto grid min-h-screen w-full max-w-6xl gap-5 px-4 py-5 sm:gap-10 sm:px-6 sm:py-10 lg:grid-cols-[1fr_420px] lg:px-8">
+        <div className="flex flex-col justify-start sm:justify-center">
+          <Link href="/" className="mb-5 flex w-fit items-center gap-3 sm:mb-10">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 sm:h-12 sm:w-12">
+              <Trophy className="h-5 w-5 text-emerald-300 sm:h-6 sm:w-6" />
             </div>
 
             <div>
@@ -42,21 +42,21 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </Link>
 
           <div className="max-w-2xl">
-            <div className="mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-200">
+            <div className="mb-3 inline-flex w-fit items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-200 sm:mb-6 sm:px-4 sm:py-2 sm:text-sm">
               <LogIn className="h-4 w-4" />
               Welcome back
             </div>
 
-            <h1 className="text-5xl font-black tracking-tight sm:text-6xl">
+            <h1 className="text-3xl font-black tracking-tight sm:text-6xl">
               Back to the <span className="text-gradient">leaderboard.</span>
             </h1>
 
-            <p className="mt-5 max-w-xl text-lg leading-8 text-slate-300">
+            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300 sm:mt-5 sm:text-lg sm:leading-8">
               Log in to check your leagues, make predictions, view results, and
               see who is winning the group chat.
             </p>
 
-            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+            <div className="mt-8 hidden gap-3 sm:grid sm:grid-cols-3">
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
                 <Users className="h-6 w-6 text-emerald-300" />
                 <p className="mt-4 font-bold">Private leagues</p>
@@ -84,11 +84,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </div>
         </div>
 
-        <div className="flex flex-col justify-center">
+        <div className="flex flex-col justify-start sm:justify-center">
           <Card className="fixture-card text-white">
-            <CardContent className="p-6 sm:p-8">
+            <CardContent className="p-4 sm:p-8">
               <div>
-                <h2 className="text-3xl font-black tracking-tight">
+                <h2 className="text-2xl font-black tracking-tight sm:text-3xl">
                   Log in
                 </h2>
                 <p className="mt-2 text-sm text-slate-400">
@@ -102,7 +102,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 </div>
               )}
 
-              <form action={signIn} className="mt-6 space-y-4">
+              <form action={signIn} className="mt-5 space-y-4 sm:mt-6">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
@@ -143,14 +143,14 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 </SubmitButton>
               </form>
 
-              <div className="mt-6 rounded-3xl border border-white/10 bg-slate-950/45 p-4">
+              <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/45 p-3 sm:mt-6 sm:rounded-3xl sm:p-4">
                 <p className="flex items-center gap-2 text-sm text-slate-300">
                   <CheckCircle2 className="h-4 w-4 text-emerald-300" />
                   Your leagues, predictions and points will be waiting.
                 </p>
               </div>
 
-              <p className="mt-6 text-center text-sm text-slate-300">
+              <p className="mt-5 text-center text-sm text-slate-300 sm:mt-6">
                 New to Cup Clash?{" "}
                 <Link
                   href="/auth/register"

@@ -117,37 +117,99 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         fixture.away_score !== undefined
     ).length || 0;
 
+  let hasPendingResultsAnchor = false;
+  let hasFinishedResultsAnchor = false;
+
   return (
     <AppShell isAdmin>
-      <PageHero
-        eyebrow="Admin"
-        title="Manage results"
-        description="Update fixture scores, recalculate prediction points, and set the tournament winner bonus."
-        actions={
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <form action={recalculateAllFinishedFixtures}>
-              <SubmitButton
-                variant="secondary"
-                pendingText="Recalculating..."
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Recalculate all
-              </SubmitButton>
-            </form>
+      <div className="sm:hidden">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-white">
+          <h1 className="text-2xl font-black tracking-tight">Admin</h1>
+          <p className="mt-2 text-sm text-slate-300">
+            Manage scores and winners.
+          </p>
 
-            <Button asChild>
-              <Link href="/dashboard">Back to dashboard</Link>
-            </Button>
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-2xl border border-white/10 bg-slate-950/45 px-2 py-2">
+              <p className="text-lg font-black">{finishedCount}</p>
+              <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-400">
+                Finished
+              </p>
+            </div>
 
-            <Button asChild variant="secondary">
-              <Link href="/admin/leagues">
-                <Shield className="mr-2 h-4 w-4" />
-                Manage leagues
-              </Link>
-            </Button>
+            <div className="rounded-2xl border border-white/10 bg-slate-950/45 px-2 py-2">
+              <p className="text-lg font-black">{pendingCount}</p>
+              <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-400">
+                Pending
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-yellow-300/20 bg-yellow-300/10 px-2 py-2">
+              <p className="text-lg font-black">{scoredCount}</p>
+              <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-300">
+                Scored
+              </p>
+            </div>
           </div>
-        }
-      />
+        </div>
+      </div>
+
+      <div className="hidden sm:block">
+        <PageHero
+          eyebrow="Admin"
+          title="Manage results"
+          description="Update fixture scores, recalculate prediction points, and set the tournament winner bonus."
+          actions={
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <form action={recalculateAllFinishedFixtures}>
+                <SubmitButton
+                  variant="secondary"
+                  pendingText="Recalculating..."
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Recalculate all
+                </SubmitButton>
+              </form>
+
+              <Button asChild>
+                <Link href="/dashboard">Back to dashboard</Link>
+              </Button>
+
+              <Button asChild variant="secondary">
+                <Link href="/admin/leagues">
+                  <Shield className="mr-2 h-4 w-4" />
+                  Manage leagues
+                </Link>
+              </Button>
+            </div>
+          }
+        />
+      </div>
+
+      <div className="sticky top-[73px] z-20 mt-4 grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-slate-950/80 p-2 backdrop-blur sm:static sm:flex sm:flex-wrap sm:border-0 sm:bg-transparent sm:p-0">
+        <Button asChild variant="secondary" className="h-9 px-2 text-xs sm:h-10 sm:px-3 sm:text-sm">
+          <a href="#fixture-results">Fixtures</a>
+        </Button>
+
+        <Button asChild variant="secondary" className="h-9 px-2 text-xs sm:h-10 sm:px-3 sm:text-sm">
+          <Link href="/admin/leagues">Leagues</Link>
+        </Button>
+
+        <Button asChild className="h-9 px-2 text-xs sm:h-10 sm:px-3 sm:text-sm">
+          <a href="#fixture-results">Results</a>
+        </Button>
+      </div>
+
+      <form action={recalculateAllFinishedFixtures} className="mt-3 sm:hidden">
+        <SubmitButton
+          variant="secondary"
+          className="h-10 w-full"
+          pendingText="Recalculating..."
+        >
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Recalculate all finished fixtures
+        </SubmitButton>
+      </form>
 
       {error && (
         <div className="mt-6 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -161,7 +223,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </div>
       )}
 
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
+      <div className="mt-6 hidden gap-4 sm:grid md:grid-cols-3">
         <Card className="pitch-card text-white">
           <CardContent className="p-5">
             <p className="text-sm font-semibold text-slate-300">
@@ -196,28 +258,28 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </Card>
       </div>
 
-      <Card className="mt-6 pitch-card text-white">
-        <CardContent className="p-6 sm:p-8">
-          <div className="grid gap-6 lg:grid-cols-[1fr_420px] lg:items-end">
+      <Card className="mt-4 pitch-card text-white sm:mt-6">
+        <CardContent className="p-4 sm:p-8">
+          <div className="grid gap-4 sm:gap-6 lg:grid-cols-[1fr_420px] lg:items-end">
             <div>
               <div className="flex items-center gap-2">
                 <Crown className="h-6 w-6 text-yellow-300" />
-                <h2 className="text-2xl font-black tracking-tight">
+                <h2 className="text-xl font-black tracking-tight sm:text-2xl">
                   Tournament winner
                 </h2>
               </div>
 
-              <p className="mt-3 max-w-2xl text-slate-300">
+              <p className="mt-2 max-w-2xl text-sm text-slate-300 sm:mt-3 sm:text-base">
                 Select the final World Cup winner. Users who picked this team
                 receive 20 bonus points.
               </p>
 
-              <div className="mt-5 rounded-3xl border border-yellow-300/20 bg-yellow-300/10 px-5 py-4">
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-yellow-200">
+              <div className="mt-4 rounded-2xl border border-yellow-300/20 bg-yellow-300/10 px-4 py-3 sm:mt-5 sm:rounded-3xl sm:px-5 sm:py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yellow-200 sm:text-sm sm:tracking-[0.2em]">
                   Current winner
                 </p>
 
-                <p className="mt-2 text-2xl font-black">
+                <p className="mt-2 text-xl font-black sm:text-2xl">
                   {selectedWinner
                     ? `${selectedWinner.name} (${selectedWinner.short_name})`
                     : "Not selected yet"}
@@ -251,17 +313,17 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </CardContent>
       </Card>
 
-      <div className="mt-8">
+      <div id="fixture-results" className="mt-6 scroll-mt-28 sm:mt-8">
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
           <div>
             <div className="flex items-center gap-2">
               <Shield className="h-6 w-6 text-emerald-300" />
-              <h2 className="text-2xl font-black tracking-tight">
+              <h2 className="text-xl font-black tracking-tight sm:text-2xl">
                 Fixture results
               </h2>
             </div>
 
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 hidden text-sm text-slate-400 sm:block">
               Enter full-time scores. Points will be recalculated for that
               fixture automatically.
             </p>
@@ -273,7 +335,19 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </AppBadge>
         </div>
 
-        <div className="mt-5 space-y-4">
+        <div className="mt-4 grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-slate-950/50 p-2 text-center text-xs text-slate-300 sm:hidden">
+          <a href="#fixture-results" className="rounded-xl bg-white/10 px-2 py-2 font-semibold">
+            All
+          </a>
+          <a href="#pending-results" className="rounded-xl bg-white/5 px-2 py-2 font-semibold">
+            Pending
+          </a>
+          <a href="#finished-results" className="rounded-xl bg-white/5 px-2 py-2 font-semibold">
+            Finished
+          </a>
+        </div>
+
+        <div className="mt-4 space-y-3 sm:mt-5 sm:space-y-4">
           {fixtures?.map((fixture) => {
             const homeTeam = (
               Array.isArray(fixture.home_team)
@@ -288,21 +362,40 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             ) as Team | null;
 
             const isFinished = fixture.status === "finished";
+            const anchorIds: string[] = [];
+
+            if (!isFinished && !hasPendingResultsAnchor) {
+              anchorIds.push("pending-results");
+              hasPendingResultsAnchor = true;
+            }
+
+            if (isFinished && !hasFinishedResultsAnchor) {
+              anchorIds.push("finished-results");
+              hasFinishedResultsAnchor = true;
+            }
 
             return (
               <Card
                 key={fixture.id}
                 className={
                   isFinished
-                    ? "fixture-card overflow-hidden text-white"
-                    : "glass-card overflow-hidden text-white"
+                    ? "fixture-card relative scroll-mt-32 overflow-hidden text-white"
+                    : "glass-card relative scroll-mt-32 overflow-hidden text-white"
                 }
               >
+                {anchorIds.map((anchorId) => (
+                  <span
+                    key={anchorId}
+                    id={anchorId}
+                    className="absolute -top-28"
+                    aria-hidden="true"
+                  />
+                ))}
                 <CardContent className="p-0">
-                  <div className="border-b border-white/10 px-5 py-4 sm:px-6">
-                    <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
+                  <div className="border-b border-white/10 px-4 py-3 sm:px-6 sm:py-4">
+                    <div className="flex flex-col justify-between gap-3 sm:gap-5 lg:flex-row lg:items-start">
                       <div className="min-w-0 flex-1">
-                        <div className="mb-4 flex flex-wrap items-center gap-2">
+                        <div className="mb-3 flex flex-wrap items-center gap-2 sm:mb-4">
                           {fixture.match_number && (
                             <AppBadge variant="muted">
                               Match {fixture.match_number}
@@ -333,44 +426,44 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                           </AppBadge>
                         </div>
 
-                        <div className="grid gap-5 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
-                          <div className="flex items-center gap-4">
+                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-5">
+                          <div className="flex min-w-0 items-center gap-2 sm:gap-4">
                             <TeamFlag team={homeTeam} size="sm" />
 
-                            <div>
+                            <div className="min-w-0">
                               <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
                                 {homeTeam?.short_name}
                               </p>
-                              <h3 className="mt-1 text-xl font-black tracking-tight">
+                              <h3 className="mt-1 truncate text-base font-black tracking-tight sm:text-xl">
                                 {homeTeam?.name}
                               </h3>
                             </div>
                           </div>
 
-                          <div className="flex justify-start sm:justify-center">
-                            <div className="rounded-full border border-white/10 bg-white px-3 py-1.5 text-xs font-black uppercase tracking-[0.24em] text-slate-950">
+                          <div className="flex justify-center">
+                            <div className="rounded-full border border-white/10 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-950 sm:py-1.5 sm:text-xs sm:tracking-[0.24em]">
                               vs
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-4 sm:justify-end sm:text-right">
-                            <div className="sm:order-2">
+                          <div className="flex min-w-0 items-center justify-end gap-2 text-right sm:gap-4">
+                            <div className="order-2">
                               <TeamFlag team={awayTeam} size="sm" />
                             </div>
 
-                            <div className="sm:order-1">
+                            <div className="order-1 min-w-0">
                               <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
                                 {awayTeam?.short_name}
                               </p>
-                              <h3 className="mt-1 text-xl font-black tracking-tight">
+                              <h3 className="mt-1 truncate text-base font-black tracking-tight sm:text-xl">
                                 {awayTeam?.name}
                               </h3>
                             </div>
                           </div>
                         </div>
 
-                        <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-slate-400">
-                          <span className="flex items-center gap-1.5">
+                        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-400 sm:mt-5 sm:gap-3 sm:text-sm">
+                          <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-slate-200">
                             <CalendarDays className="h-4 w-4" />
                             {formatUkKickoff(fixture.kickoff_at)}
                           </span>
@@ -385,11 +478,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                       </div>
 
                       {isFinished && (
-                        <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-4 text-center lg:min-w-36">
-                          <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-300">
+                        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-center sm:rounded-3xl sm:px-5 sm:py-4 lg:min-w-36">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-300 sm:text-xs sm:tracking-[0.2em]">
                             Result
                           </p>
-                          <p className="mt-2 text-3xl font-black">
+                          <p className="mt-1 text-2xl font-black sm:mt-2 sm:text-3xl">
                             {fixture.home_score} - {fixture.away_score}
                           </p>
                         </div>
@@ -397,7 +490,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     </div>
                   </div>
 
-                  <div className="px-5 py-5 sm:px-6">
+                  <div className="px-4 py-4 sm:px-6 sm:py-5">
                     <form
                       action={updateFixtureResult}
                       className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"
@@ -412,12 +505,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                         <p className="text-sm font-semibold text-slate-300">
                           {isFinished ? "Update score" : "Enter score"}
                         </p>
-                        <p className="mt-1 text-sm text-slate-500">
+                        <p className="mt-1 hidden text-sm text-slate-500 sm:block">
                           Saving will recalculate points for this fixture.
                         </p>
                       </div>
 
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                      <div className="grid grid-cols-[1fr_1fr] gap-3 sm:flex sm:flex-row sm:items-end">
                         <div className="space-y-2">
                           <label className="text-sm font-medium text-slate-300">
                             {homeTeam?.short_name}
@@ -453,7 +546,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                         </div>
 
                         <SubmitButton
-                          className="h-12"
+                          className="col-span-2 h-12 w-full sm:w-auto"
                           pendingText={isFinished ? "Updating..." : "Saving..."}
                         >
                           {isFinished ? "Update result" : "Save result"}

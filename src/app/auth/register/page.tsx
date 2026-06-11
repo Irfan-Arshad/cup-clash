@@ -26,11 +26,11 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
 
   return (
     <main className="app-bg min-h-screen text-white">
-      <section className="mx-auto grid min-h-screen w-full max-w-6xl gap-10 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_420px] lg:px-8">
-        <div className="flex flex-col justify-center">
-          <Link href="/" className="mb-10 flex w-fit items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10">
-              <Trophy className="h-6 w-6 text-emerald-300" />
+      <section className="mx-auto grid min-h-screen w-full max-w-6xl gap-5 px-4 py-5 sm:gap-10 sm:px-6 sm:py-10 lg:grid-cols-[1fr_420px] lg:px-8">
+        <div className="flex flex-col justify-start sm:justify-center">
+          <Link href="/" className="mb-5 flex w-fit items-center gap-3 sm:mb-10">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 sm:h-12 sm:w-12">
+              <Trophy className="h-5 w-5 text-emerald-300 sm:h-6 sm:w-6" />
             </div>
 
             <div>
@@ -42,22 +42,22 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
           </Link>
 
           <div className="max-w-2xl">
-            <div className="mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-200">
+            <div className="mb-3 inline-flex w-fit items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-200 sm:mb-6 sm:px-4 sm:py-2 sm:text-sm">
               <Sparkles className="h-4 w-4" />
               Start your tournament
             </div>
 
-            <h1 className="text-5xl font-black tracking-tight sm:text-6xl">
+            <h1 className="text-3xl font-black tracking-tight sm:text-6xl">
               Create your league.
               <span className="text-gradient block">Rule the table.</span>
             </h1>
 
-            <p className="mt-5 max-w-xl text-lg leading-8 text-slate-300">
+            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300 sm:mt-5 sm:text-lg sm:leading-8">
               Create an account, start a private prediction league, invite your
               mates, and battle for bragging rights across the tournament.
             </p>
 
-            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+            <div className="mt-8 hidden gap-3 sm:grid sm:grid-cols-3">
               <div className="rounded-3xl border border-white/10 bg-white/5 p-5">
                 <Users className="h-6 w-6 text-emerald-300" />
                 <p className="mt-4 font-bold">Invite everyone</p>
@@ -85,11 +85,11 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
           </div>
         </div>
 
-        <div className="flex flex-col justify-center">
+        <div className="flex flex-col justify-start sm:justify-center">
           <Card className="fixture-card text-white">
-            <CardContent className="p-6 sm:p-8">
+            <CardContent className="p-4 sm:p-8">
               <div>
-                <h2 className="text-3xl font-black tracking-tight">
+                <h2 className="text-2xl font-black tracking-tight sm:text-3xl">
                   Create account
                 </h2>
                 <p className="mt-2 text-sm text-slate-400">
@@ -103,7 +103,7 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
                 </div>
               )}
 
-              <form action={signUp} className="mt-6 space-y-4">
+              <form action={signUp} className="mt-5 space-y-4 sm:mt-6">
                 <div className="space-y-2">
                   <Label htmlFor="displayName">Display name</Label>
                   <Input
@@ -151,14 +151,14 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
                 </SubmitButton>
               </form>
 
-              <div className="mt-6 rounded-3xl border border-white/10 bg-slate-950/45 p-4">
+              <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/45 p-3 sm:mt-6 sm:rounded-3xl sm:p-4">
                 <p className="flex items-center gap-2 text-sm text-slate-300">
                   <CheckCircle2 className="h-4 w-4 text-emerald-300" />
                   Create leagues, join leagues, and save predictions.
                 </p>
               </div>
 
-              <p className="mt-6 text-center text-sm text-slate-300">
+              <p className="mt-5 text-center text-sm text-slate-300 sm:mt-6">
                 Already have an account?{" "}
                 <Link
                   href="/auth/login"
