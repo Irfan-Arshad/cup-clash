@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import {
   CalendarDays,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Lock,
   MapPin,
@@ -27,7 +28,6 @@ type FixturesPageProps = {
 };
 
 type Team = TeamFlagData;
-
 
 function FixtureStatusBadge({
   isFinished,
@@ -159,20 +159,58 @@ export default async function FixturesPage({
       return !isFixtureLocked && !hasPrediction;
     }).length || 0;
 
+  let hasUnpredictedAnchor = false;
+  let hasPredictedAnchor = false;
+  let hasUpcomingAnchor = false;
+
   return (
     <AppShell isAdmin={isAdmin}>
-      <PageHero
-        eyebrow="Fixtures"
-        title="Make your predictions"
-        description="Pick your scorelines before kickoff. Exact scores get the biggest reward, but every correct outcome can move you up the table."
-        actions={
-          <Button asChild variant="secondary">
-            <Link href="/dashboard">Back to dashboard</Link>
-          </Button>
-        }
-      />
+      <div className="sm:hidden">
+        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-white">
+          <h1 className="text-2xl font-black tracking-tight">Fixtures</h1>
+          <p className="mt-2 text-sm text-slate-300">
+            Make your picks before kickoff.
+          </p>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+            <div className="rounded-2xl border border-white/10 bg-slate-950/45 px-2 py-2">
+              <p className="text-lg font-black">{fixtures?.length || 0}</p>
+              <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-400">
+                Total
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-slate-950/45 px-2 py-2">
+              <p className="text-lg font-black">{predictedCount}</p>
+              <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-400">
+                Made
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-yellow-300/20 bg-yellow-300/10 px-2 py-2">
+              <p className="text-lg font-black">{needsPickCount}</p>
+              <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-300">
+                Left
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="hidden sm:block">
+        <PageHero
+          eyebrow="Fixtures"
+          title="Make your predictions"
+          description="Pick your scorelines before kickoff. Exact scores get the biggest reward, but every correct outcome can move you up the table."
+          actions={
+            <Button asChild variant="secondary">
+              <Link href="/dashboard">Back to dashboard</Link>
+            </Button>
+          }
+        />
+      </div>
+
+      <div className="mt-6 hidden gap-4 sm:grid md:grid-cols-3">
         <Card className="pitch-card text-white">
           <CardContent className="p-5">
             <p className="text-sm font-semibold text-slate-300">
@@ -213,6 +251,24 @@ export default async function FixturesPage({
         </Card>
       </div>
 
+      <div className="sticky top-[73px] z-20 mt-4 grid grid-cols-4 gap-2 rounded-2xl border border-white/10 bg-slate-950/80 p-2 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0">
+        <Button asChild variant="secondary" className="h-9 px-2 text-xs sm:h-10 sm:px-3 sm:text-sm">
+          <a href="#fixtures-list">All</a>
+        </Button>
+
+        <Button asChild variant="secondary" className="h-9 px-2 text-xs sm:h-10 sm:px-3 sm:text-sm">
+          <a href="#unpredicted-fixtures">Unpredicted</a>
+        </Button>
+
+        <Button asChild variant="secondary" className="h-9 px-2 text-xs sm:h-10 sm:px-3 sm:text-sm">
+          <a href="#predicted-fixtures">Predicted</a>
+        </Button>
+
+        <Button asChild variant="secondary" className="h-9 px-2 text-xs sm:h-10 sm:px-3 sm:text-sm">
+          <a href="#upcoming-fixtures">Upcoming</a>
+        </Button>
+      </div>
+
       {error && (
         <div className="mt-6 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
           {decodeURIComponent(error)}
@@ -225,12 +281,31 @@ export default async function FixturesPage({
         </div>
       )}
 
-      <div className="mt-8 space-y-5">
+      <div id="fixtures-list" className="mt-4 space-y-3 sm:mt-8 sm:space-y-5">
         {fixtures?.map((fixture) => {
           const prediction = predictionMap.get(fixture.id);
           const kickoffAt = new Date(fixture.kickoff_at);
           const isLocked = kickoffAt <= new Date();
           const isFinished = fixture.status === "finished";
+          const hasPrediction = Boolean(prediction);
+          const isUpcoming = kickoffAt > new Date();
+          const isUnpredicted = !isLocked && !hasPrediction;
+          const anchorIds: string[] = [];
+
+          if (isUnpredicted && !hasUnpredictedAnchor) {
+            anchorIds.push("unpredicted-fixtures");
+            hasUnpredictedAnchor = true;
+          }
+
+          if (hasPrediction && !hasPredictedAnchor) {
+            anchorIds.push("predicted-fixtures");
+            hasPredictedAnchor = true;
+          }
+
+          if (isUpcoming && !hasUpcomingAnchor) {
+            anchorIds.push("upcoming-fixtures");
+            hasUpcomingAnchor = true;
+          }
 
           const homeTeam = (
             Array.isArray(fixture.home_team)
@@ -247,13 +322,21 @@ export default async function FixturesPage({
           return (
             <Card
               key={fixture.id}
-              className="fixture-card overflow-hidden text-white transition duration-200 hover:-translate-y-0.5 hover:bg-white/10"
+              className="fixture-card relative scroll-mt-32 overflow-hidden text-white transition duration-200 hover:-translate-y-0.5 hover:bg-white/10"
             >
+              {anchorIds.map((anchorId) => (
+                <span
+                  key={anchorId}
+                  id={anchorId}
+                  className="absolute -top-28"
+                  aria-hidden="true"
+                />
+              ))}
               <CardContent className="p-0">
-                <div className="border-b border-white/10 px-5 py-4 sm:px-6">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="border-b border-white/10 px-4 py-3 sm:px-6 sm:py-4">
+                  <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1">
-                      <div className="mb-4 flex flex-wrap items-center gap-2">
+                      <div className="mb-3 flex flex-wrap items-center gap-2 sm:mb-4">
                         {fixture.match_number && (
                           <AppBadge variant="muted">
                             Match {fixture.match_number}
@@ -273,48 +356,55 @@ export default async function FixturesPage({
                         <FixtureStatusBadge
                           isFinished={isFinished}
                           isLocked={isLocked}
-                          hasPrediction={Boolean(prediction)}
+                          hasPrediction={hasPrediction}
                         />
+
+                        {prediction && (
+                          <AppBadge variant="blue">
+                            Your pick: {prediction.predicted_home_score} -{" "}
+                            {prediction.predicted_away_score}
+                          </AppBadge>
+                        )}
                       </div>
 
-                      <div className="grid gap-5 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
-                        <div className="flex items-center gap-4">
-                          <TeamFlag team={homeTeam} />
+                      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-5">
+                        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+                          <TeamFlag team={homeTeam} size="sm" />
 
-                          <div>
+                          <div className="min-w-0">
                             <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
                               {homeTeam?.short_name}
                             </p>
-                            <h2 className="mt-1 text-2xl font-black tracking-tight">
+                            <h2 className="mt-1 truncate text-base font-black tracking-tight sm:text-2xl">
                               {homeTeam?.name}
                             </h2>
                           </div>
                         </div>
 
-                        <div className="flex justify-start sm:justify-center">
-                          <div className="rounded-full border border-white/10 bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.28em] text-slate-950 shadow-xl">
+                        <div className="flex justify-center">
+                          <div className="rounded-full border border-white/10 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-slate-950 shadow-xl sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.28em]">
                             vs
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-4 sm:justify-end sm:text-right">
-                          <div className="sm:order-2">
-                            <TeamFlag team={awayTeam} />
+                        <div className="flex min-w-0 items-center justify-end gap-2 text-right sm:gap-4">
+                          <div className="order-2">
+                            <TeamFlag team={awayTeam} size="sm" />
                           </div>
 
-                          <div className="sm:order-1">
+                          <div className="order-1 min-w-0">
                             <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
                               {awayTeam?.short_name}
                             </p>
-                            <h2 className="mt-1 text-2xl font-black tracking-tight">
+                            <h2 className="mt-1 truncate text-base font-black tracking-tight sm:text-2xl">
                               {awayTeam?.name}
                             </h2>
                           </div>
                         </div>
                       </div>
 
-                      <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-slate-400">
-                        <span className="flex items-center gap-1.5">
+                      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-400 sm:mt-5 sm:gap-3 sm:text-sm">
+                        <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-slate-200">
                           <CalendarDays className="h-4 w-4" />
                           {formatUkKickoff(fixture.kickoff_at)}
                         </span>
@@ -330,33 +420,33 @@ export default async function FixturesPage({
                   </div>
                 </div>
 
-                <div className="px-5 py-5 sm:px-6">
+                <div className="px-4 py-4 sm:px-6 sm:py-5">
                   {isFinished ? (
-                    <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5">
-                      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                    <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 sm:rounded-3xl sm:p-5">
+                      <div className="flex items-center justify-between gap-4">
                         <div>
                           <p className="flex items-center gap-2 text-sm font-semibold text-emerald-300">
                             <CheckCircle2 className="h-4 w-4" />
                             Full-time result
                           </p>
 
-                          <p className="mt-2 text-4xl font-black tracking-tight">
+                          <p className="mt-2 text-2xl font-black tracking-tight sm:text-4xl">
                             {fixture.home_score} - {fixture.away_score}
                           </p>
                         </div>
 
-                        <div className="rounded-3xl border border-white/10 bg-white/10 px-6 py-4 text-center">
-                          <p className="text-4xl font-black">
+                        <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-center sm:rounded-3xl sm:px-6 sm:py-4">
+                          <p className="text-2xl font-black sm:text-4xl">
                             {prediction?.points || 0}
                           </p>
-                          <p className="text-xs uppercase tracking-[0.22em] text-slate-300">
+                          <p className="text-[10px] uppercase tracking-[0.18em] text-slate-300 sm:text-xs sm:tracking-[0.22em]">
                             points
                           </p>
                         </div>
                       </div>
                     </div>
                   ) : isLocked ? (
-                    <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-5 text-slate-300">
+                    <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4 text-slate-300 sm:rounded-3xl sm:p-5">
                       <p className="flex items-center gap-2 font-semibold">
                         <Lock className="h-4 w-4" />
                         Predictions are locked for this fixture.
@@ -378,13 +468,44 @@ export default async function FixturesPage({
                       )}
                     </div>
                   ) : (
-                    <PredictionForm
-                      fixtureId={fixture.id}
-                      homeShortName={homeTeam?.short_name}
-                      awayShortName={awayTeam?.short_name}
-                      initialHomeScore={prediction?.predicted_home_score ?? null}
-                      initialAwayScore={prediction?.predicted_away_score ?? null}
-                    />
+                    <>
+                      <details className="group sm:hidden">
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3">
+                          <span className="font-semibold text-slate-100">
+                            {prediction ? "Update prediction" : "Make prediction"}
+                          </span>
+                          <ChevronDown className="h-5 w-5 text-slate-300 transition-transform group-open:rotate-180" />
+                        </summary>
+
+                        <div className="mt-3">
+                          <PredictionForm
+                            fixtureId={fixture.id}
+                            homeShortName={homeTeam?.short_name}
+                            awayShortName={awayTeam?.short_name}
+                            initialHomeScore={
+                              prediction?.predicted_home_score ?? null
+                            }
+                            initialAwayScore={
+                              prediction?.predicted_away_score ?? null
+                            }
+                          />
+                        </div>
+                      </details>
+
+                      <div className="hidden sm:block">
+                        <PredictionForm
+                          fixtureId={fixture.id}
+                          homeShortName={homeTeam?.short_name}
+                          awayShortName={awayTeam?.short_name}
+                          initialHomeScore={
+                            prediction?.predicted_home_score ?? null
+                          }
+                          initialAwayScore={
+                            prediction?.predicted_away_score ?? null
+                          }
+                        />
+                      </div>
+                    </>
                   )}
                 </div>
               </CardContent>
