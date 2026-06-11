@@ -67,7 +67,7 @@ const memberUserIds = (members || []).map((member) => member.user_id);
 const { data: profiles, error: profilesError } = memberUserIds.length
   ? await supabase
       .from("profiles")
-      .select("id, display_name, email")
+      .select("id, display_name")
       .in("id", memberUserIds)
   : { data: [], error: null };
 
@@ -241,7 +241,7 @@ const memberLoadError = membersError?.message || profilesError?.message;
                       </div>
 
                       <p className="mt-1 truncate text-xs text-slate-400 sm:text-sm">
-                        {profile?.email || member.user_id}
+                        User ID: {member.user_id}
                       </p>
                     </div>
                   </div>
