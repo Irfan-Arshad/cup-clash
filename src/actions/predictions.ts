@@ -1,10 +1,19 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
-export async function savePrediction(formData: FormData) {
+export type SavePredictionState = {
+  success?: string;
+  error?: string;
+  fixtureId?: number;
+  predictedHomeScore?: number;
+  predictedAwayScore?: number;
+};
+
+export async function savePrediction(
+  _previousState: SavePredictionState,
+  formData: FormData
+): Promise<SavePredictionState> {
   const supabase = await createClient();
 
   const {
@@ -12,7 +21,9 @@ export async function savePrediction(formData: FormData) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/auth/login");
+    return {
+      error: "You need to log in again.",
+    };
   }
 
   const fixtureId = Number(formData.get("fixtureId"));
@@ -20,11 +31,15 @@ export async function savePrediction(formData: FormData) {
   const awayScore = Number(formData.get("awayScore"));
 
   if (!fixtureId || Number.isNaN(homeScore) || Number.isNaN(awayScore)) {
-    redirect("/fixtures?error=Invalid prediction");
+    return {
+      error: "Invalid prediction.",
+    };
   }
 
   if (homeScore < 0 || awayScore < 0) {
-    redirect("/fixtures?error=Scores cannot be negative");
+    return {
+      error: "Scores cannot be negative.",
+    };
   }
 
   const { data: fixture, error: fixtureError } = await supabase
@@ -34,14 +49,18 @@ export async function savePrediction(formData: FormData) {
     .single();
 
   if (fixtureError || !fixture) {
-    redirect("/fixtures?error=Fixture not found");
+    return {
+      error: "Fixture not found.",
+    };
   }
 
   const kickoffAt = new Date(fixture.kickoff_at);
   const now = new Date();
 
   if (kickoffAt <= now) {
-    redirect("/fixtures?error=Predictions are locked for this fixture");
+    return {
+      error: "Predictions are locked for this fixture.",
+    };
   }
 
   const { error } = await supabase.from("predictions").upsert(
@@ -58,9 +77,15 @@ export async function savePrediction(formData: FormData) {
   );
 
   if (error) {
-    redirect(`/fixtures?error=${encodeURIComponent(error.message)}`);
+    return {
+      error: error.message,
+    };
   }
 
-  revalidatePath("/fixtures");
-  redirect("/fixtures?success=Prediction saved");
+  return {
+    success: "Prediction saved.",
+    fixtureId,
+    predictedHomeScore: homeScore,
+    predictedAwayScore: awayScore,
+  };
 }

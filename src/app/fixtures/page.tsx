@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -11,14 +10,12 @@ import {
   Target,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { savePrediction } from "@/actions/predictions";
+import { PredictionForm } from "@/components/fixtures/prediction-form";
 import { AppShell } from "@/components/layout/app-shell";
 import { PageHero } from "@/components/layout/page-hero";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { AppBadge } from "@/components/ui/app-badge";
-import { SubmitButton } from "@/components/ui/submit-button";
 import { TeamFlag, type TeamFlagData } from "@/components/team/team-flag";
 
 type FixturesPageProps = {
@@ -332,18 +329,6 @@ export default async function FixturesPage({
                         )}
                       </div>
                     </div>
-
-                    {prediction && (
-                      <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 px-5 py-4 text-center lg:min-w-36">
-                        <p className="text-xs font-bold uppercase tracking-[0.22em] text-emerald-300">
-                          Your pick
-                        </p>
-                        <p className="mt-2 text-3xl font-black">
-                          {prediction.predicted_home_score} -{" "}
-                          {prediction.predicted_away_score}
-                        </p>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -395,77 +380,13 @@ export default async function FixturesPage({
                       )}
                     </div>
                   ) : (
-                    <form
-                      action={savePrediction}
-                      className="rounded-3xl border border-white/10 bg-slate-950/40 p-5"
-                    >
-                      <input
-                        type="hidden"
-                        name="fixtureId"
-                        value={fixture.id}
-                      />
-
-                      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-                        <div>
-                          <p className="flex items-center gap-2 text-sm font-semibold text-slate-200">
-                            <Target className="h-4 w-4 text-emerald-300" />
-                            Enter your score prediction
-                          </p>
-
-                          <p className="mt-1 text-sm text-slate-500">
-                            You can change it as many times as you like before
-                            kickoff.
-                          </p>
-                        </div>
-
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-300">
-                              {homeTeam?.short_name}
-                            </label>
-                            <Input
-                              name="homeScore"
-                              type="number"
-                              min="0"
-                              defaultValue={
-                                prediction?.predicted_home_score ?? ""
-                              }
-                              className="h-12 w-full border-white/10 bg-slate-950 text-center text-lg font-black sm:w-24"
-                              required
-                            />
-                          </div>
-
-                          <div className="hidden pb-3 text-lg font-black text-slate-500 sm:block">
-                            -
-                          </div>
-
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-300">
-                              {awayTeam?.short_name}
-                            </label>
-                            <Input
-                              name="awayScore"
-                              type="number"
-                              min="0"
-                              defaultValue={
-                                prediction?.predicted_away_score ?? ""
-                              }
-                              className="h-12 w-full border-white/10 bg-slate-950 text-center text-lg font-black sm:w-24"
-                              required
-                            />
-                          </div>
-
-                          <SubmitButton
-                            className="h-12"
-                            pendingText={prediction ? "Updating..." : "Saving..."}
-                          >
-                            {prediction
-                              ? "Update prediction"
-                              : "Save prediction"}
-                          </SubmitButton>
-                        </div>
-                      </div>
-                    </form>
+                    <PredictionForm
+                      fixtureId={fixture.id}
+                      homeShortName={homeTeam?.short_name}
+                      awayShortName={awayTeam?.short_name}
+                      initialHomeScore={prediction?.predicted_home_score ?? null}
+                      initialAwayScore={prediction?.predicted_away_score ?? null}
+                    />
                   )}
                 </div>
               </CardContent>
