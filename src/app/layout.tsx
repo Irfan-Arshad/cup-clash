@@ -10,19 +10,58 @@ export const metadata: Metadata = {
   title: "Cup Clash",
   description: "Predict the scores. Beat your mates. Rule the leaderboard.",
   applicationName: "Cup Clash",
+
+  icons: {
+    icon: [
+      {
+        url: "/icon",
+        sizes: "512x512",
+        type: "image/png",
+      },
+    ],
+    shortcut: "/icon",
+    apple: [
+      {
+        url: "/apple-icon",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
+  },
+
+  manifest: "/manifest.webmanifest",
+
   appleWebApp: {
     capable: true,
     title: "Cup Clash",
     statusBarStyle: "black-translucent",
   },
+
   formatDetection: {
     telephone: false,
   },
-  icons: {
-    icon: "/icon",
-    apple: "/apple-icon",
+
+  openGraph: {
+    title: "Cup Clash",
+    description: "Predict the scores. Beat your mates. Rule the leaderboard.",
+    siteName: "Cup Clash",
+    type: "website",
+    images: [
+      {
+        url: "/icon",
+        width: 512,
+        height: 512,
+        alt: "Cup Clash icon",
+      },
+    ],
   },
-  manifest: "/manifest.webmanifest",
+
+  twitter: {
+    card: "summary",
+    title: "Cup Clash",
+    description: "Predict the scores. Beat your mates. Rule the leaderboard.",
+    images: ["/icon"],
+  },
 };
 
 export const viewport = {
@@ -31,9 +70,7 @@ export const viewport = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
       <body className={`${geistSans.className} antialiased`}>{children}</body>

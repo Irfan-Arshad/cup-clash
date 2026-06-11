@@ -109,7 +109,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                     id="email"
                     name="email"
                     type="email"
-                    autoComplete="email"
+                    autoComplete="username"
                     placeholder="you@example.com"
                     required
                     className="h-12 border-white/10 bg-slate-950"
