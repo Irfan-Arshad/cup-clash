@@ -3,11 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { calculatePredictionPoints } from "@/lib/scoring";
 import { requireAdmin } from "@/lib/auth";
 
 async function recalculateFixturePredictionPoints(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: ReturnType<typeof createAdminClient>,
   fixtureId: number,
   homeScore: number,
   awayScore: number
@@ -21,7 +22,7 @@ async function recalculateFixturePredictionPoints(
     throw new Error(predictionsError.message);
   }
 
-  for (const prediction of predictions || []) {
+  await Promise.all((predictions || []).map(async (prediction) => {
     const points = calculatePredictionPoints({
       predictedHome: prediction.predicted_home_score,
       predictedAway: prediction.predicted_away_score,
@@ -37,17 +38,17 @@ async function recalculateFixturePredictionPoints(
     if (updateError) {
       throw new Error(updateError.message);
     }
-  }
+  }));
 }
 
 export async function updateFixtureResult(formData: FormData) {
   const admin = await requireAdmin();
 
-if (!admin) {
-  redirect("/dashboard");
-}
+  if (!admin) {
+    redirect("/dashboard");
+  }
 
-const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const fixtureId = Number(formData.get("fixtureId"));
   const homeScore = Number(formData.get("homeScore"));
@@ -75,19 +76,19 @@ const supabase = await createClient();
   }
 
   try {
-  await recalculateFixturePredictionPoints(
-    supabase,
-    fixtureId,
-    homeScore,
-    awayScore
-  );
-} catch (error) {
-  redirect(
-    `/admin?error=${encodeURIComponent(
-      error instanceof Error ? error.message : "Could not recalculate points"
-    )}`
-  );
-}
+    await recalculateFixturePredictionPoints(
+      supabase,
+      fixtureId,
+      homeScore,
+      awayScore
+    );
+  } catch (error) {
+    redirect(
+      `/admin?error=${encodeURIComponent(
+        error instanceof Error ? error.message : "Could not recalculate points"
+      )}`
+    );
+  }
 
   revalidatePath("/admin");
   revalidatePath("/fixtures");
@@ -104,7 +105,7 @@ export async function recalculateAllFinishedFixtures() {
     redirect("/dashboard");
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data: fixtures, error: fixturesError } = await supabase
     .from("fixtures")
