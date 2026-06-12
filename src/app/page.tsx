@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import {
   ArrowRight,
   BarChart3,
@@ -14,37 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-type HomePageProps = {
-  searchParams: Promise<{
-    code?: string;
-    error?: string;
-    error_description?: string;
-    error_code?: string;
-  }>;
-};
-
-export default async function HomePage({ searchParams }: HomePageProps) {
-  const params = await searchParams;
-
-  if (params.code) {
-    redirect(
-      `/auth/callback?code=${encodeURIComponent(
-        params.code
-      )}&next=/auth/update-password`
-    );
-  }
-
-  if (params.error || params.error_description || params.error_code) {
-    redirect(
-      `/auth/reset-password?error=${encodeURIComponent(
-        params.error_description ||
-          params.error_code ||
-          params.error ||
-          "Authentication failed"
-      )}`
-    );
-  }
-
+export default function HomePage() {
   return (
     <main className="app-bg min-h-screen text-white">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5 sm:px-6 lg:px-8">

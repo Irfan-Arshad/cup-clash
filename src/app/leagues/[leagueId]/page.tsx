@@ -63,10 +63,6 @@ type LeaderboardRow = {
   correctResults: number;
 };
 
-type RankedLeaderboardRow = LeaderboardRow & {
-  rank: number;
-};
-
 type FinishedFixtureBreakdown = {
   fixtureId: number;
   kickoff_at: string;
@@ -372,32 +368,15 @@ export default async function LeaguePage({
       };
     }) || [];
 
-  const sortedLeaderboard: RankedLeaderboardRow[] = [...leaderboard]
-    .sort((a, b) => {
-      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-      if (b.exactScores !== a.exactScores) {
-        return b.exactScores - a.exactScores;
-      }
-      if (b.correctResults !== a.correctResults) {
-        return b.correctResults - a.correctResults;
-      }
+  const sortedLeaderboard = [...leaderboard].sort((a, b) => {
+    if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+    if (b.exactScores !== a.exactScores) return b.exactScores - a.exactScores;
+    if (b.correctResults !== a.correctResults) {
+      return b.correctResults - a.correctResults;
+    }
 
-      return a.displayName.localeCompare(b.displayName);
-    })
-    .reduce<RankedLeaderboardRow[]>((rankedRows, row, index) => {
-      const previousRow = rankedRows[index - 1];
-      const rank =
-        previousRow && previousRow.totalPoints === row.totalPoints
-          ? previousRow.rank
-          : (previousRow?.rank ?? 0) + 1;
-
-      rankedRows.push({
-        ...row,
-        rank,
-      });
-
-      return rankedRows;
-    }, []);
+    return a.displayName.localeCompare(b.displayName);
+  });
 
   const finishedFixturePredictionGroups = new Map<
     number,
@@ -457,7 +436,9 @@ export default async function LeaguePage({
   );
 
   const currentUserRow = sortedLeaderboard.find((row) => row.userId === user.id);
-  const currentUserRank = currentUserRow?.rank ?? null;
+  const currentUserRank = currentUserRow
+    ? sortedLeaderboard.findIndex((row) => row.userId === user.id) + 1
+    : null;
 
   const topPlayer = sortedLeaderboard[0];
 
@@ -678,8 +659,8 @@ export default async function LeaguePage({
             <p className="mt-5 text-slate-300">No members yet.</p>
           ) : (
             <div className="mt-4 space-y-2 sm:mt-5 sm:space-y-3">
-              {sortedLeaderboard.map((row) => {
-                const rank = row.rank;
+              {sortedLeaderboard.map((row, index) => {
+                const rank = index + 1;
                 const isCurrentUser = row.userId === user.id;
 
                 return (
