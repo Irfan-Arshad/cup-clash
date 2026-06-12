@@ -87,7 +87,7 @@ export async function resetPassword(formData: FormData) {
     process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${siteUrl}/auth/confirm?next=/auth/update-password`,
+    redirectTo: `${siteUrl}/auth/callback?next=/auth/update-password`,
   });
 
   if (error) {
@@ -130,6 +130,8 @@ export async function updatePassword(formData: FormData) {
   if (error) {
     redirect(`/auth/update-password?error=${encodeURIComponent(error.message)}`);
   }
+
+  await supabase.auth.signOut();
 
   revalidatePath("/", "layout");
   redirect("/auth/login?success=Password%20updated.%20Please%20log%20in.");
