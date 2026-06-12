@@ -21,80 +21,119 @@ async function recalculateFixturePredictionPoints(
     throw new Error(predictionsError.message);
   }
 
-  for (const prediction of predictions || []) {
-    const points = calculatePredictionPoints({
-      predictedHome: prediction.predicted_home_score,
-      predictedAway: prediction.predicted_away_score,
-      actualHome: homeScore,
-      actualAway: awayScore,
+  const pointUpdates =
+    predictions?.map((prediction) => ({
+      id: prediction.id,
+      points: calculatePredictionPoints({
+        predictedHome: prediction.predicted_home_score,
+        predictedAway: prediction.predicted_away_score,
+        actualHome: homeScore,
+        actualAway: awayScore,
+      }),
+    })) || [];
+
+  if (pointUpdates.length === 0) {
+    return;
+  }
+
+  const { error: updateError } = await supabase
+    .from("predictions")
+    .upsert(pointUpdates, {
+      onConflict: "id",
     });
 
-    const { error: updateError } = await supabase
-      .from("predictions")
-      .update({ points })
-      .eq("id", prediction.id);
-
-    if (updateError) {
-      throw new Error(updateError.message);
-    }
+  if (updateError) {
+    throw new Error(updateError.message);
   }
 }
 
-export async function updateFixtureResult(formData: FormData) {
+export type UpdateFixtureResultState = {
+  success?: string;
+  error?: string;
+  fixtureId?: number;
+  homeScore?: number;
+  awayScore?: number;
+  status?: string;
+};
+
+export async function updateFixtureResult(
+  previousStateOrFormData: UpdateFixtureResultState | FormData,
+  maybeFormData?: FormData
+): Promise<UpdateFixtureResultState> {
+  const formData =
+    maybeFormData || (previousStateOrFormData as FormData);
+
   const admin = await requireAdmin();
 
-if (!admin) {
-  redirect("/dashboard");
-}
+  if (!admin) {
+    return {
+      error: "You do not have permission to update results.",
+    };
+  }
 
-const supabase = await createClient();
+  const supabase = await createClient();
 
   const fixtureId = Number(formData.get("fixtureId"));
   const homeScore = Number(formData.get("homeScore"));
   const awayScore = Number(formData.get("awayScore"));
 
   if (!fixtureId || Number.isNaN(homeScore) || Number.isNaN(awayScore)) {
-    redirect("/admin?error=Invalid score");
+    return {
+      error: "Invalid score.",
+    };
   }
 
   if (homeScore < 0 || awayScore < 0) {
-    redirect("/admin?error=Scores cannot be negative");
+    return {
+      error: "Scores cannot be negative.",
+    };
   }
 
-  const { error: fixtureUpdateError } = await supabase
+  const { data: updatedFixture, error: fixtureUpdateError } = await supabase
     .from("fixtures")
     .update({
       home_score: homeScore,
       away_score: awayScore,
       status: "finished",
     })
-    .eq("id", fixtureId);
+    .eq("id", fixtureId)
+    .select("id")
+    .single();
 
-  if (fixtureUpdateError) {
-    redirect(`/admin?error=${encodeURIComponent(fixtureUpdateError.message)}`);
+  if (fixtureUpdateError || !updatedFixture) {
+    return {
+      error: fixtureUpdateError?.message || "Could not update fixture.",
+    };
   }
 
   try {
-  await recalculateFixturePredictionPoints(
-    supabase,
-    fixtureId,
-    homeScore,
-    awayScore
-  );
-} catch (error) {
-  redirect(
-    `/admin?error=${encodeURIComponent(
-      error instanceof Error ? error.message : "Could not recalculate points"
-    )}`
-  );
-}
+    await recalculateFixturePredictionPoints(
+      supabase,
+      fixtureId,
+      homeScore,
+      awayScore
+    );
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Could not recalculate points.",
+    };
+  }
 
   revalidatePath("/admin");
   revalidatePath("/fixtures");
   revalidatePath("/dashboard");
   revalidatePath("/leagues");
 
-  redirect("/admin?success=Result saved and points calculated");
+  return {
+    success: "Result saved and points calculated.",
+    fixtureId,
+    homeScore,
+    awayScore,
+    status: "finished",
+  };
 }
 
 export async function recalculateAllFinishedFixtures() {

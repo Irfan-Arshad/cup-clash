@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import {
   recalculateAllFinishedFixtures,
-  updateFixtureResult,
   updateTournamentWinner,
 } from "@/actions/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -32,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FixtureResultForm } from "@/components/admin/fixture-result-form";
 
 export const dynamic = "force-dynamic";
 
@@ -493,68 +493,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   </div>
 
                   <div className="px-4 py-4 sm:px-6 sm:py-5">
-                    <form
-                      action={updateFixtureResult}
-                      className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"
-                    >
-                      <input
-                        type="hidden"
-                        name="fixtureId"
-                        value={fixture.id}
-                      />
-
-                      <div>
-                        <p className="text-sm font-semibold text-slate-300">
-                          {isFinished ? "Update score" : "Enter score"}
-                        </p>
-                        <p className="mt-1 hidden text-sm text-slate-500 sm:block">
-                          Saving will recalculate points for this fixture.
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-[1fr_1fr] gap-3 sm:flex sm:flex-row sm:items-end">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-slate-300">
-                            {homeTeam?.short_name}
-                          </label>
-
-                          <Input
-                            name="homeScore"
-                            type="number"
-                            min="0"
-                            defaultValue={fixture.home_score ?? ""}
-                            className="h-12 w-full border-white/10 bg-slate-950 text-center text-lg font-black sm:w-24"
-                            required
-                          />
-                        </div>
-
-                        <div className="hidden pb-3 text-lg font-black text-slate-500 sm:block">
-                          -
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-slate-300">
-                            {awayTeam?.short_name}
-                          </label>
-
-                          <Input
-                            name="awayScore"
-                            type="number"
-                            min="0"
-                            defaultValue={fixture.away_score ?? ""}
-                            className="h-12 w-full border-white/10 bg-slate-950 text-center text-lg font-black sm:w-24"
-                            required
-                          />
-                        </div>
-
-                        <SubmitButton
-                          className="col-span-2 h-12 w-full sm:w-auto"
-                          pendingText={isFinished ? "Updating..." : "Saving..."}
-                        >
-                          {isFinished ? "Update result" : "Save result"}
-                        </SubmitButton>
-                      </div>
-                    </form>
+                    <FixtureResultForm
+                      fixtureId={fixture.id}
+                      initialHomeScore={fixture.home_score ?? null}
+                      initialAwayScore={fixture.away_score ?? null}
+                      homeShortName={homeTeam?.short_name}
+                      awayShortName={awayTeam?.short_name}
+                    />
                   </div>
                 </CardContent>
               </Card>
