@@ -17,12 +17,14 @@ import { SubmitButton } from "@/components/ui/submit-button";
 type LoginPageProps = {
   searchParams: Promise<{
     error?: string;
+    success?: string;
   }>;
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
   const error = params.error;
+  
 
   return (
     <main className="app-bg min-h-screen text-white">
