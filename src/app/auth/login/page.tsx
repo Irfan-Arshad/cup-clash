@@ -17,12 +17,14 @@ import { SubmitButton } from "@/components/ui/submit-button";
 type LoginPageProps = {
   searchParams: Promise<{
     error?: string;
+    success?: string;
   }>;
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
   const error = params.error;
+  const success = params.success;
 
   return (
     <main className="app-bg min-h-screen text-white">
@@ -99,6 +101,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               {error && (
                 <div className="mt-6 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
                   {decodeURIComponent(error)}
+                </div>
+              )}
+
+              {success && (
+                <div className="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                  {decodeURIComponent(success)}
                 </div>
               )}
 

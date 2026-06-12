@@ -87,7 +87,7 @@ export async function resetPassword(formData: FormData) {
     process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${siteUrl}/auth/update-password`,
+    redirectTo: `${siteUrl}/auth/callback?next=/auth/update-password`,
   });
 
   if (error) {
@@ -99,4 +99,40 @@ export async function resetPassword(formData: FormData) {
   redirect(
     "/auth/reset-password?success=Password%20reset%20email%20sent"
   );
+}
+
+export async function updatePassword(formData: FormData) {
+  const supabase = await createClient();
+
+  const password = String(formData.get("password") || "");
+  const confirmPassword = String(formData.get("confirmPassword") || "");
+
+  if (!password || !confirmPassword) {
+    redirect(
+      "/auth/update-password?error=Please%20enter%20your%20new%20password"
+    );
+  }
+
+  if (password.length < 6) {
+    redirect(
+      "/auth/update-password?error=Password%20must%20be%20at%20least%206%20characters"
+    );
+  }
+
+  if (password !== confirmPassword) {
+    redirect("/auth/update-password?error=Passwords%20do%20not%20match");
+  }
+
+  const { error } = await supabase.auth.updateUser({
+    password,
+  });
+
+  if (error) {
+    redirect(`/auth/update-password?error=${encodeURIComponent(error.message)}`);
+  }
+
+  await supabase.auth.signOut();
+
+  revalidatePath("/", "layout");
+  redirect("/auth/login?success=Password%20updated.%20Please%20log%20in.");
 }

@@ -22,6 +22,7 @@ async function recalculateFixturePredictionPoints(
     throw new Error(predictionsError.message);
   }
 
+<<<<<<< HEAD
   await Promise.all((predictions || []).map(async (prediction) => {
     const points = calculatePredictionPoints({
       predictedHome: prediction.predicted_home_score,
@@ -39,40 +40,98 @@ async function recalculateFixturePredictionPoints(
       throw new Error(updateError.message);
     }
   }));
+=======
+  const pointUpdates =
+    predictions?.map((prediction) => ({
+      id: prediction.id,
+      points: calculatePredictionPoints({
+        predictedHome: prediction.predicted_home_score,
+        predictedAway: prediction.predicted_away_score,
+        actualHome: homeScore,
+        actualAway: awayScore,
+      }),
+    })) || [];
+
+  if (pointUpdates.length === 0) {
+    return;
+  }
+
+  const { error: updateError } = await supabase
+    .from("predictions")
+    .upsert(pointUpdates, {
+      onConflict: "id",
+    });
+
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
+>>>>>>> 3df3fe64d7cee6a3250290ff0d7b586905dd2303
 }
 
-export async function updateFixtureResult(formData: FormData) {
+export type UpdateFixtureResultState = {
+  success?: string;
+  error?: string;
+  fixtureId?: number;
+  homeScore?: number;
+  awayScore?: number;
+  status?: string;
+};
+
+export async function updateFixtureResult(
+  previousStateOrFormData: UpdateFixtureResultState | FormData,
+  maybeFormData?: FormData
+): Promise<UpdateFixtureResultState> {
+  const formData =
+    maybeFormData || (previousStateOrFormData as FormData);
+
   const admin = await requireAdmin();
 
   if (!admin) {
+<<<<<<< HEAD
     redirect("/dashboard");
   }
 
   const supabase = createAdminClient();
+=======
+    return {
+      error: "You do not have permission to update results.",
+    };
+  }
+
+  const supabase = await createClient();
+>>>>>>> 3df3fe64d7cee6a3250290ff0d7b586905dd2303
 
   const fixtureId = Number(formData.get("fixtureId"));
   const homeScore = Number(formData.get("homeScore"));
   const awayScore = Number(formData.get("awayScore"));
 
   if (!fixtureId || Number.isNaN(homeScore) || Number.isNaN(awayScore)) {
-    redirect("/admin?error=Invalid score");
+    return {
+      error: "Invalid score.",
+    };
   }
 
   if (homeScore < 0 || awayScore < 0) {
-    redirect("/admin?error=Scores cannot be negative");
+    return {
+      error: "Scores cannot be negative.",
+    };
   }
 
-  const { error: fixtureUpdateError } = await supabase
+  const { data: updatedFixture, error: fixtureUpdateError } = await supabase
     .from("fixtures")
     .update({
       home_score: homeScore,
       away_score: awayScore,
       status: "finished",
     })
-    .eq("id", fixtureId);
+    .eq("id", fixtureId)
+    .select("id")
+    .single();
 
-  if (fixtureUpdateError) {
-    redirect(`/admin?error=${encodeURIComponent(fixtureUpdateError.message)}`);
+  if (fixtureUpdateError || !updatedFixture) {
+    return {
+      error: fixtureUpdateError?.message || "Could not update fixture.",
+    };
   }
 
   try {
@@ -83,11 +142,20 @@ export async function updateFixtureResult(formData: FormData) {
       awayScore
     );
   } catch (error) {
+<<<<<<< HEAD
     redirect(
       `/admin?error=${encodeURIComponent(
         error instanceof Error ? error.message : "Could not recalculate points"
       )}`
     );
+=======
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Could not recalculate points.",
+    };
+>>>>>>> 3df3fe64d7cee6a3250290ff0d7b586905dd2303
   }
 
   revalidatePath("/admin");
@@ -95,7 +163,13 @@ export async function updateFixtureResult(formData: FormData) {
   revalidatePath("/dashboard");
   revalidatePath("/leagues");
 
-  redirect("/admin?success=Result saved and points calculated");
+  return {
+    success: "Result saved and points calculated.",
+    fixtureId,
+    homeScore,
+    awayScore,
+    status: "finished",
+  };
 }
 
 export async function recalculateAllFinishedFixtures() {
