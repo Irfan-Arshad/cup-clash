@@ -63,6 +63,10 @@ type LeaderboardRow = {
   correctResults: number;
 };
 
+type RankedLeaderboardRow = LeaderboardRow & {
+  rank: number;
+};
+
 type FinishedFixtureBreakdown = {
   fixtureId: number;
   kickoff_at: string;
@@ -118,6 +122,24 @@ function getRankIcon(rank: number) {
   if (rank === 3) return <Medal className="h-5 w-5 text-orange-300" />;
 
   return <Shield className="h-5 w-5 text-slate-400" />;
+}
+
+function applyDenseRanks(rows: LeaderboardRow[]): RankedLeaderboardRow[] {
+  let previousPoints: number | null = null;
+  let currentRank = 0;
+
+  return rows.map((row) => {
+    if (previousPoints === null || row.totalPoints !== previousPoints) {
+      currentRank += 1;
+    }
+
+    previousPoints = row.totalPoints;
+
+    return {
+      ...row,
+      rank: currentRank,
+    };
+  });
 }
 
 export default async function LeaguePage({
@@ -368,7 +390,7 @@ export default async function LeaguePage({
       };
     }) || [];
 
-  const sortedLeaderboard = [...leaderboard].sort((a, b) => {
+  const sortedLeaderboard = applyDenseRanks([...leaderboard].sort((a, b) => {
     if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
     if (b.exactScores !== a.exactScores) return b.exactScores - a.exactScores;
     if (b.correctResults !== a.correctResults) {
@@ -376,7 +398,7 @@ export default async function LeaguePage({
     }
 
     return a.displayName.localeCompare(b.displayName);
-  });
+  }));
 
   const finishedFixturePredictionGroups = new Map<
     number,
@@ -436,9 +458,7 @@ export default async function LeaguePage({
   );
 
   const currentUserRow = sortedLeaderboard.find((row) => row.userId === user.id);
-  const currentUserRank = currentUserRow
-    ? sortedLeaderboard.findIndex((row) => row.userId === user.id) + 1
-    : null;
+  const currentUserRank = currentUserRow?.rank || null;
 
   const topPlayer = sortedLeaderboard[0];
 
@@ -659,8 +679,8 @@ export default async function LeaguePage({
             <p className="mt-5 text-slate-300">No members yet.</p>
           ) : (
             <div className="mt-4 space-y-2 sm:mt-5 sm:space-y-3">
-              {sortedLeaderboard.map((row, index) => {
-                const rank = index + 1;
+              {sortedLeaderboard.map((row) => {
+                const rank = row.rank;
                 const isCurrentUser = row.userId === user.id;
 
                 return (

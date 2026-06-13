@@ -4,44 +4,21 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { calculatePredictionPoints } from "@/lib/scoring";
 import { requireAdmin } from "@/lib/auth";
 
-async function recalculateFixturePredictionPoints(
-  supabase: ReturnType<typeof createAdminClient>,
-  fixtureId: number,
-  homeScore: number,
-  awayScore: number
-) {
-  const { data: predictions, error: predictionsError } = await supabase
-    .from("predictions")
-    .select("id, predicted_home_score, predicted_away_score")
-    .eq("fixture_id", fixtureId);
+export type UpdateFixtureResultState = {
+  error?: string;
+  success?: string;
+  fixtureId?: number;
+  homeScore?: number;
+  awayScore?: number;
+  status?: "finished";
+};
 
-  if (predictionsError) {
-    throw new Error(predictionsError.message);
-  }
-
-  await Promise.all((predictions || []).map(async (prediction) => {
-    const points = calculatePredictionPoints({
-      predictedHome: prediction.predicted_home_score,
-      predictedAway: prediction.predicted_away_score,
-      actualHome: homeScore,
-      actualAway: awayScore,
-    });
-
-    const { error: updateError } = await supabase
-      .from("predictions")
-      .update({ points })
-      .eq("id", prediction.id);
-
-    if (updateError) {
-      throw new Error(updateError.message);
-    }
-  }));
-}
-
-export async function updateFixtureResult(formData: FormData) {
+export async function updateFixtureResult(
+  _previousState: UpdateFixtureResultState,
+  formData: FormData
+): Promise<UpdateFixtureResultState> {
   const admin = await requireAdmin();
 
   if (!admin) {
@@ -55,11 +32,11 @@ export async function updateFixtureResult(formData: FormData) {
   const awayScore = Number(formData.get("awayScore"));
 
   if (!fixtureId || Number.isNaN(homeScore) || Number.isNaN(awayScore)) {
-    redirect("/admin?error=Invalid score");
+    return { error: "Invalid score" };
   }
 
   if (homeScore < 0 || awayScore < 0) {
-    redirect("/admin?error=Scores cannot be negative");
+    return { error: "Scores cannot be negative" };
   }
 
   const { error: fixtureUpdateError } = await supabase
@@ -72,22 +49,18 @@ export async function updateFixtureResult(formData: FormData) {
     .eq("id", fixtureId);
 
   if (fixtureUpdateError) {
-    redirect(`/admin?error=${encodeURIComponent(fixtureUpdateError.message)}`);
+    return { error: fixtureUpdateError.message };
   }
 
-  try {
-    await recalculateFixturePredictionPoints(
-      supabase,
-      fixtureId,
-      homeScore,
-      awayScore
-    );
-  } catch (error) {
-    redirect(
-      `/admin?error=${encodeURIComponent(
-        error instanceof Error ? error.message : "Could not recalculate points"
-      )}`
-    );
+  const { error: recalculateError } = await supabase.rpc(
+    "recalculate_fixture_prediction_points",
+    {
+      target_fixture_id: fixtureId,
+    }
+  );
+
+  if (recalculateError) {
+    return { error: recalculateError.message };
   }
 
   revalidatePath("/admin");
@@ -95,7 +68,13 @@ export async function updateFixtureResult(formData: FormData) {
   revalidatePath("/dashboard");
   revalidatePath("/leagues");
 
-  redirect("/admin?success=Result saved and points calculated");
+  return {
+    success: "Result saved and points updated.",
+    fixtureId,
+    homeScore,
+    awayScore,
+    status: "finished",
+  };
 }
 
 export async function recalculateAllFinishedFixtures() {
@@ -120,12 +99,16 @@ export async function recalculateAllFinishedFixtures() {
 
   try {
     for (const fixture of fixtures || []) {
-      await recalculateFixturePredictionPoints(
-        supabase,
-        fixture.id,
-        fixture.home_score,
-        fixture.away_score
+      const { error: recalculateError } = await supabase.rpc(
+        "recalculate_fixture_prediction_points",
+        {
+          target_fixture_id: fixture.id,
+        }
       );
+
+      if (recalculateError) {
+        throw new Error(recalculateError.message);
+      }
     }
   } catch (error) {
     redirect(
