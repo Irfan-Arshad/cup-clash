@@ -19,62 +19,96 @@ export async function updateFixtureResult(
   _previousState: UpdateFixtureResultState,
   formData: FormData
 ): Promise<UpdateFixtureResultState> {
-  const admin = await requireAdmin();
-
-  if (!admin) {
-    redirect("/dashboard");
-  }
-
-  const supabase = createAdminClient();
-
   const fixtureId = Number(formData.get("fixtureId"));
   const homeScore = Number(formData.get("homeScore"));
   const awayScore = Number(formData.get("awayScore"));
+  const timingId = `${fixtureId || "unknown"}:${Date.now()}:${Math.random()
+    .toString(36)
+    .slice(2)}`;
+  const actionTimingLabel = `updateFixtureResult full action ${timingId}`;
 
-  if (!fixtureId || Number.isNaN(homeScore) || Number.isNaN(awayScore)) {
-    return { error: "Invalid score" };
-  }
+  console.time(actionTimingLabel);
 
-  if (homeScore < 0 || awayScore < 0) {
-    return { error: "Scores cannot be negative" };
-  }
+  try {
+    const admin = await requireAdmin();
 
-  const { error: fixtureUpdateError } = await supabase
-    .from("fixtures")
-    .update({
-      home_score: homeScore,
-      away_score: awayScore,
-      status: "finished",
-    })
-    .eq("id", fixtureId);
-
-  if (fixtureUpdateError) {
-    return { error: fixtureUpdateError.message };
-  }
-
-  const { error: recalculateError } = await supabase.rpc(
-    "recalculate_fixture_prediction_points",
-    {
-      target_fixture_id: fixtureId,
+    if (!admin) {
+      redirect("/dashboard");
     }
-  );
 
-  if (recalculateError) {
-    return { error: recalculateError.message };
+    const supabase = createAdminClient();
+
+    if (!fixtureId || Number.isNaN(homeScore) || Number.isNaN(awayScore)) {
+      return { error: "Invalid score" };
+    }
+
+    if (homeScore < 0 || awayScore < 0) {
+      return { error: "Scores cannot be negative" };
+    }
+
+    const fixtureUpdateTimingLabel = `updateFixtureResult fixture update ${timingId}`;
+    console.time(fixtureUpdateTimingLabel);
+    let fixtureUpdateError: { message: string } | null = null;
+    try {
+      const result = await supabase
+        .from("fixtures")
+        .update({
+          home_score: homeScore,
+          away_score: awayScore,
+          status: "finished",
+        })
+        .eq("id", fixtureId);
+
+      fixtureUpdateError = result.error;
+    } finally {
+      console.timeEnd(fixtureUpdateTimingLabel);
+    }
+
+    if (fixtureUpdateError) {
+      return { error: fixtureUpdateError.message };
+    }
+
+    const pointsRpcTimingLabel = `updateFixtureResult points RPC ${timingId}`;
+    console.time(pointsRpcTimingLabel);
+    let recalculateError: { message: string } | null = null;
+    try {
+      const result = await supabase.rpc(
+        "recalculate_fixture_prediction_points",
+        {
+          target_fixture_id: fixtureId,
+        }
+      );
+
+      recalculateError = result.error;
+    } finally {
+      console.timeEnd(pointsRpcTimingLabel);
+    }
+
+    if (recalculateError) {
+      return { error: recalculateError.message };
+    }
+
+    const revalidateTimingLabel = `updateFixtureResult revalidatePath ${timingId}`;
+    console.time(revalidateTimingLabel);
+    try {
+      revalidatePath("/admin");
+      revalidatePath("/fixtures");
+      revalidatePath("/dashboard");
+      revalidatePath("/leagues");
+    } finally {
+      console.timeEnd(revalidateTimingLabel);
+    }
+
+    return {
+      success: "Result saved and points updated.",
+      fixtureId,
+      homeScore,
+      awayScore,
+      status: "finished",
+    };
+  } finally {
+    console.timeEnd(actionTimingLabel);
   }
-
-  revalidatePath("/admin");
-  revalidatePath("/fixtures");
-  revalidatePath("/dashboard");
-  revalidatePath("/leagues");
-
-  return {
-    success: "Result saved and points updated.",
-    fixtureId,
-    homeScore,
-    awayScore,
-    status: "finished",
-  };
 }
 
 export async function recalculateAllFinishedFixtures() {

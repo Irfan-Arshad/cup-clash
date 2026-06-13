@@ -63,17 +63,6 @@ export function FixtureResultForm({
 
   return (
     <div className="space-y-3">
-      {hasResult && (
-        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-center sm:hidden">
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-300">
-            Result
-          </p>
-          <p className="mt-1 text-2xl font-black">
-            {homeScore} - {awayScore}
-          </p>
-        </div>
-      )}
-
       {state.error && (!state.fixtureId || state.fixtureId === fixtureId) && (
         <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
           {state.error}
