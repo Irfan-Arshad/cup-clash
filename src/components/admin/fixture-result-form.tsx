@@ -49,7 +49,12 @@ export function FixtureResultForm({
       setHomeScore(state.homeScore);
       setAwayScore(state.awayScore);
       setStatus(state.status || "finished");
-      router.refresh();
+
+      const timeout = setTimeout(() => {
+        router.refresh();
+      }, 1500);
+
+      return () => clearTimeout(timeout);
     }
   }, [state, fixtureId, router]);
 
@@ -69,7 +74,7 @@ export function FixtureResultForm({
         </div>
       )}
 
-      {state.error && (
+      {state.error && (!state.fixtureId || state.fixtureId === fixtureId) && (
         <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
           {state.error}
         </div>
