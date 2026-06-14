@@ -455,7 +455,15 @@ export default async function LeaguePage({
 
   const finishedFixtureBreakdown = Array.from(
     finishedFixturePredictionGroups.values()
-  );
+  ).sort((a, b) => {
+    if (a.matchNumber !== null && b.matchNumber !== null) {
+      return b.matchNumber - a.matchNumber;
+    }
+
+    return (
+      new Date(b.kickoff_at).getTime() - new Date(a.kickoff_at).getTime()
+    );
+  });
 
   const currentUserRow = sortedLeaderboard.find((row) => row.userId === user.id);
   const currentUserRank = currentUserRow?.rank || null;
