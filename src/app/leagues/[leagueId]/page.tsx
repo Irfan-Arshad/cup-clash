@@ -916,11 +916,11 @@ export default async function LeaguePage({
                 {finishedFixtureBreakdown.map((fixture) => (
                   <div
                     key={fixture.fixtureId}
-                    className="rounded-2xl border border-white/10 bg-slate-950/45 p-4"
+                    className="rounded-2xl border border-white/10 bg-slate-950/45 p-3 sm:p-4"
                   >
                     <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
                       <div className="min-w-0 flex-1">
-                        <div className="mb-3 flex flex-wrap items-center gap-2">
+                        <div className="mb-3 flex flex-wrap items-center gap-1.5 sm:gap-2">
                           {fixture.matchNumber && (
                             <AppBadge variant="muted">
                               Match {fixture.matchNumber}
@@ -945,38 +945,40 @@ export default async function LeaguePage({
                           )}
                         </div>
 
-                        <div className="grid gap-4 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
-                          <div className="flex items-center gap-3">
-                            <TeamFlag team={fixture.homeTeam} size="sm" />
+                       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-4">
+                          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                            <div className="shrink-0">
+                              <TeamFlag team={fixture.homeTeam} size="sm" />
+                            </div>
 
-                            <div>
-                              <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
+                            <div className="min-w-0">
+                              <p className="truncate text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500 sm:text-xs">
                                 {fixture.homeTeam?.short_name}
                               </p>
-                              <h3 className="mt-1 text-lg font-black tracking-tight">
+                              <h3 className="mt-0.5 truncate text-sm font-black tracking-tight sm:mt-1 sm:text-lg">
                                 {fixture.homeTeam?.name}
                               </h3>
                             </div>
                           </div>
 
-                          <div className="flex justify-start sm:justify-center">
-                            <div className="rounded-full border border-white/10 bg-white px-3 py-1.5 text-xs font-black uppercase tracking-[0.24em] text-slate-950">
+                          <div className="flex justify-center">
+                            <div className="whitespace-nowrap rounded-full border border-white/10 bg-white px-2.5 py-1 text-xs font-black uppercase tracking-[0.16em] text-slate-950 sm:px-3 sm:py-1.5 sm:tracking-[0.24em]">
                               {fixture.homeScore} - {fixture.awayScore}
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-3 sm:justify-end sm:text-right">
-                            <div className="sm:order-2">
-                              <TeamFlag team={fixture.awayTeam} size="sm" />
-                            </div>
-
-                            <div className="sm:order-1">
-                              <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
+                          <div className="flex min-w-0 items-center justify-end gap-2 text-right sm:gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500 sm:text-xs">
                                 {fixture.awayTeam?.short_name}
                               </p>
-                              <h3 className="mt-1 text-lg font-black tracking-tight">
+                              <h3 className="mt-0.5 truncate text-sm font-black tracking-tight sm:mt-1 sm:text-lg">
                                 {fixture.awayTeam?.name}
                               </h3>
+                            </div>
+
+                            <div className="shrink-0">
+                              <TeamFlag team={fixture.awayTeam} size="sm" />
                             </div>
                           </div>
                         </div>
