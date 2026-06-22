@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import {
   CalendarDays,
   CheckCircle2,
+  ChevronDown,
   Crown,
   RefreshCw,
   Shield,
@@ -103,6 +104,42 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     (team) => team.id === tournamentResult?.winner_team_id
   );
 
+  const allFixtures = fixtures || [];
+  type Fixture = (typeof allFixtures)[number];
+  const now = new Date();
+
+  const hasSubmittedScore = (fixture: Fixture) =>
+    fixture.home_score !== null &&
+    fixture.home_score !== undefined &&
+    fixture.away_score !== null &&
+    fixture.away_score !== undefined;
+
+  const completedScoredFixtures = allFixtures
+    .filter(
+      (fixture) => fixture.status === "finished" && hasSubmittedScore(fixture)
+    )
+    .sort((a, b) => {
+      if (a.match_number != null && b.match_number != null) {
+        return b.match_number - a.match_number;
+      }
+
+      return (
+        new Date(b.kickoff_at).getTime() - new Date(a.kickoff_at).getTime()
+      );
+    });
+
+  const needsScoreFixtures = allFixtures.filter(
+    (fixture) =>
+      !hasSubmittedScore(fixture) &&
+      (fixture.status === "finished" || new Date(fixture.kickoff_at) <= now)
+  );
+
+  const upcomingOrUnfinishedFixtures = allFixtures.filter(
+    (fixture) =>
+      !needsScoreFixtures.includes(fixture) &&
+      !completedScoredFixtures.includes(fixture)
+  );
+
   const finishedCount =
     fixtures?.filter((fixture) => fixture.status === "finished").length || 0;
 
@@ -119,7 +156,154 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     ).length || 0;
 
   let hasPendingResultsAnchor = false;
-  let hasFinishedResultsAnchor = false;
+
+  const renderFixtureCard = (fixture: Fixture) => {
+    const homeTeam = (
+      Array.isArray(fixture.home_team)
+        ? fixture.home_team[0]
+        : fixture.home_team
+    ) as Team | null;
+
+    const awayTeam = (
+      Array.isArray(fixture.away_team)
+        ? fixture.away_team[0]
+        : fixture.away_team
+    ) as Team | null;
+
+    const isFinished = fixture.status === "finished";
+    const anchorIds: string[] = [];
+
+    if (!hasSubmittedScore(fixture) && !hasPendingResultsAnchor) {
+      anchorIds.push("pending-results");
+      hasPendingResultsAnchor = true;
+    }
+
+    return (
+      <Card
+        key={fixture.id}
+        className={
+          isFinished
+            ? "fixture-card relative scroll-mt-32 overflow-hidden text-white"
+            : "glass-card relative scroll-mt-32 overflow-hidden text-white"
+        }
+      >
+        {anchorIds.map((anchorId) => (
+          <span
+            key={anchorId}
+            id={anchorId}
+            className="absolute -top-28"
+            aria-hidden="true"
+          />
+        ))}
+        <CardContent className="p-0">
+          <div className="border-b border-white/10 px-4 py-3 sm:px-6 sm:py-4">
+            <div className="flex flex-col justify-between gap-3 sm:gap-5 lg:flex-row lg:items-start">
+              <div className="min-w-0 flex-1">
+                <div className="mb-3 flex flex-wrap items-center gap-2 sm:mb-4">
+                  {fixture.match_number && (
+                    <AppBadge variant="muted">
+                      Match {fixture.match_number}
+                    </AppBadge>
+                  )}
+
+                  {fixture.group_name && (
+                    <AppBadge variant="slate">{fixture.group_name}</AppBadge>
+                  )}
+
+                  {fixture.round_name && (
+                    <AppBadge variant="muted">{fixture.round_name}</AppBadge>
+                  )}
+
+                  <AppBadge variant={isFinished ? "emerald" : "gold"}>
+                    {isFinished ? (
+                      <>
+                        <CheckCircle2 className="mr-1 h-3 w-3" />
+                        Finished
+                      </>
+                    ) : (
+                      "Needs result"
+                    )}
+                  </AppBadge>
+                </div>
+
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-5">
+                  <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+                    <TeamFlag team={homeTeam} size="sm" />
+
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
+                        {homeTeam?.short_name}
+                      </p>
+                      <h3 className="mt-1 truncate text-base font-black tracking-tight sm:text-xl">
+                        {homeTeam?.name}
+                      </h3>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-center">
+                    <div className="rounded-full border border-white/10 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-950 sm:py-1.5 sm:text-xs sm:tracking-[0.24em]">
+                      vs
+                    </div>
+                  </div>
+
+                  <div className="flex min-w-0 items-center justify-end gap-2 text-right sm:gap-4">
+                    <div className="order-2">
+                      <TeamFlag team={awayTeam} size="sm" />
+                    </div>
+
+                    <div className="order-1 min-w-0">
+                      <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
+                        {awayTeam?.short_name}
+                      </p>
+                      <h3 className="mt-1 truncate text-base font-black tracking-tight sm:text-xl">
+                        {awayTeam?.name}
+                      </h3>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-400 sm:mt-5 sm:gap-3 sm:text-sm">
+                  <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-slate-200">
+                    <CalendarDays className="h-4 w-4" />
+                    {formatUkKickoff(fixture.kickoff_at)}
+                  </span>
+
+                  {fixture.venue && (
+                    <span className="flex items-center gap-1.5">
+                      <Trophy className="h-4 w-4" />
+                      {fixture.venue}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {isFinished && (
+                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-center sm:rounded-3xl sm:px-5 sm:py-4 lg:min-w-36">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-300 sm:text-xs sm:tracking-[0.2em]">
+                    Result
+                  </p>
+                  <p className="mt-1 text-2xl font-black sm:mt-2 sm:text-3xl">
+                    {fixture.home_score} - {fixture.away_score}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="px-4 py-4 sm:px-6 sm:py-5">
+            <FixtureResultForm
+              fixtureId={fixture.id}
+              homeShortName={homeTeam?.short_name}
+              awayShortName={awayTeam?.short_name}
+              initialHomeScore={fixture.home_score}
+              initialAwayScore={fixture.away_score}
+              initialStatus={fixture.status}
+            />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <AppShell isAdmin>
@@ -349,162 +533,42 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         </div>
 
         <div className="mt-4 space-y-3 sm:mt-5 sm:space-y-4">
-          {fixtures?.map((fixture) => {
-            const homeTeam = (
-              Array.isArray(fixture.home_team)
-                ? fixture.home_team[0]
-                : fixture.home_team
-            ) as Team | null;
+          {needsScoreFixtures.length > 0 && (
+            <section className="space-y-3 sm:space-y-4">
+              <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-yellow-200">
+                Needs score
+              </h3>
+              {needsScoreFixtures.map((fixture) => renderFixtureCard(fixture))}
+            </section>
+          )}
 
-            const awayTeam = (
-              Array.isArray(fixture.away_team)
-                ? fixture.away_team[0]
-                : fixture.away_team
-            ) as Team | null;
+          {upcomingOrUnfinishedFixtures.length > 0 && (
+            <section className="space-y-3 sm:space-y-4">
+              <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-slate-300">
+                Upcoming / unfinished
+              </h3>
+              {upcomingOrUnfinishedFixtures.map((fixture) =>
+                renderFixtureCard(fixture)
+              )}
+            </section>
+          )}
 
-            const isFinished = fixture.status === "finished";
-            const anchorIds: string[] = [];
+          {completedScoredFixtures.length > 0 && (
+            <details id="finished-results" className="group scroll-mt-32">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white backdrop-blur sm:px-6 sm:py-4">
+                <span className="font-bold">
+                  Completed scored fixtures ({completedScoredFixtures.length})
+                </span>
+                <ChevronDown className="h-5 w-5 transition-transform group-open:rotate-180" />
+              </summary>
 
-            if (!isFinished && !hasPendingResultsAnchor) {
-              anchorIds.push("pending-results");
-              hasPendingResultsAnchor = true;
-            }
-
-            if (isFinished && !hasFinishedResultsAnchor) {
-              anchorIds.push("finished-results");
-              hasFinishedResultsAnchor = true;
-            }
-
-            return (
-              <Card
-                key={fixture.id}
-                className={
-                  isFinished
-                    ? "fixture-card relative scroll-mt-32 overflow-hidden text-white"
-                    : "glass-card relative scroll-mt-32 overflow-hidden text-white"
-                }
-              >
-                {anchorIds.map((anchorId) => (
-                  <span
-                    key={anchorId}
-                    id={anchorId}
-                    className="absolute -top-28"
-                    aria-hidden="true"
-                  />
-                ))}
-                <CardContent className="p-0">
-                  <div className="border-b border-white/10 px-4 py-3 sm:px-6 sm:py-4">
-                    <div className="flex flex-col justify-between gap-3 sm:gap-5 lg:flex-row lg:items-start">
-                      <div className="min-w-0 flex-1">
-                        <div className="mb-3 flex flex-wrap items-center gap-2 sm:mb-4">
-                          {fixture.match_number && (
-                            <AppBadge variant="muted">
-                              Match {fixture.match_number}
-                            </AppBadge>
-                          )}
-
-                          {fixture.group_name && (
-                            <AppBadge variant="slate">
-                              {fixture.group_name}
-                            </AppBadge>
-                          )}
-
-                          {fixture.round_name && (
-                            <AppBadge variant="muted">
-                              {fixture.round_name}
-                            </AppBadge>
-                          )}
-
-                          <AppBadge variant={isFinished ? "emerald" : "gold"}>
-                            {isFinished ? (
-                              <>
-                                <CheckCircle2 className="mr-1 h-3 w-3" />
-                                Finished
-                              </>
-                            ) : (
-                              "Needs result"
-                            )}
-                          </AppBadge>
-                        </div>
-
-                        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-5">
-                          <div className="flex min-w-0 items-center gap-2 sm:gap-4">
-                            <TeamFlag team={homeTeam} size="sm" />
-
-                            <div className="min-w-0">
-                              <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
-                                {homeTeam?.short_name}
-                              </p>
-                              <h3 className="mt-1 truncate text-base font-black tracking-tight sm:text-xl">
-                                {homeTeam?.name}
-                              </h3>
-                            </div>
-                          </div>
-
-                          <div className="flex justify-center">
-                            <div className="rounded-full border border-white/10 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-950 sm:py-1.5 sm:text-xs sm:tracking-[0.24em]">
-                              vs
-                            </div>
-                          </div>
-
-                          <div className="flex min-w-0 items-center justify-end gap-2 text-right sm:gap-4">
-                            <div className="order-2">
-                              <TeamFlag team={awayTeam} size="sm" />
-                            </div>
-
-                            <div className="order-1 min-w-0">
-                              <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
-                                {awayTeam?.short_name}
-                              </p>
-                              <h3 className="mt-1 truncate text-base font-black tracking-tight sm:text-xl">
-                                {awayTeam?.name}
-                              </h3>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-400 sm:mt-5 sm:gap-3 sm:text-sm">
-                          <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-slate-200">
-                            <CalendarDays className="h-4 w-4" />
-                            {formatUkKickoff(fixture.kickoff_at)}
-                          </span>
-
-                          {fixture.venue && (
-                            <span className="flex items-center gap-1.5">
-                              <Trophy className="h-4 w-4" />
-                              {fixture.venue}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {isFinished && (
-                        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-center sm:rounded-3xl sm:px-5 sm:py-4 lg:min-w-36">
-                          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-300 sm:text-xs sm:tracking-[0.2em]">
-                            Result
-                          </p>
-                          <p className="mt-1 text-2xl font-black sm:mt-2 sm:text-3xl">
-                            {fixture.home_score} - {fixture.away_score}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="px-4 py-4 sm:px-6 sm:py-5">
-                    <FixtureResultForm
-                      fixtureId={fixture.id}
-                      homeShortName={homeTeam?.short_name}
-                      awayShortName={awayTeam?.short_name}
-                      initialHomeScore={fixture.home_score}
-                      initialAwayScore={fixture.away_score}
-                      initialStatus={fixture.status}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+              <div className="mt-3 space-y-3 sm:mt-4 sm:space-y-4">
+                {completedScoredFixtures.map((fixture) =>
+                  renderFixtureCard(fixture)
+                )}
+              </div>
+            </details>
+          )}
 
           {(!fixtures || fixtures.length === 0) && (
             <Card className="glass-card text-white">
