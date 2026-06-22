@@ -44,13 +44,21 @@ export async function savePrediction(
 
   const { data: fixture, error: fixtureError } = await supabase
     .from("fixtures")
-    .select("id, kickoff_at")
+    .select(
+      "id, kickoff_at, home_team_id, away_team_id, home_placeholder, away_placeholder, bracket_slot, next_match_number"
+    )
     .eq("id", fixtureId)
     .single();
 
   if (fixtureError || !fixture) {
     return {
       error: "Fixture not found.",
+    };
+  }
+
+  if (fixture.home_team_id === null || fixture.away_team_id === null) {
+    return {
+      error: "Predictions open when both teams are confirmed.",
     };
   }
 

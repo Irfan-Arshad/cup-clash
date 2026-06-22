@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { formatUkKickoff } from "@/lib/format-date";
+import { getFixtureTeamName } from "@/lib/fixtures";
 import {
   Select,
   SelectContent,
@@ -72,6 +73,8 @@ type FinishedFixtureBreakdown = {
   kickoff_at: string;
   homeTeam: Team | null;
   awayTeam: Team | null;
+  homePlaceholder: string | null;
+  awayPlaceholder: string | null;
   homeScore: number | null;
   awayScore: number | null;
   matchNumber: number | null;
@@ -269,6 +272,12 @@ export default async function LeaguePage({
               home_score,
               away_score,
               status,
+              home_team_id,
+              away_team_id,
+              home_placeholder,
+              away_placeholder,
+              bracket_slot,
+              next_match_number,
               home_team:teams!fixtures_home_team_id_fkey (
                 name,
                 short_name,
@@ -438,6 +447,8 @@ export default async function LeaguePage({
         venue: fixture.venue,
         homeTeam,
         awayTeam,
+        homePlaceholder: fixture.home_placeholder,
+        awayPlaceholder: fixture.away_placeholder,
         homeScore: fixture.home_score,
         awayScore: fixture.away_score,
         predictions: [],
@@ -943,6 +954,10 @@ export default async function LeaguePage({
                               {fixture.venue}
                             </AppBadge>
                           )}
+
+                          {(!fixture.homeTeam || !fixture.awayTeam) && (
+                            <AppBadge variant="muted">Teams TBC</AppBadge>
+                          )}
                         </div>
 
                        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-4">
@@ -953,10 +968,13 @@ export default async function LeaguePage({
 
                             <div className="min-w-0">
                               <p className="truncate text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500 sm:text-xs">
-                                {fixture.homeTeam?.short_name}
+                                {fixture.homeTeam?.short_name || "TBC"}
                               </p>
                               <h3 className="mt-0.5 truncate text-sm font-black tracking-tight sm:mt-1 sm:text-lg">
-                                {fixture.homeTeam?.name}
+                                {getFixtureTeamName(
+                                  fixture.homeTeam,
+                                  fixture.homePlaceholder
+                                )}
                               </h3>
                             </div>
                           </div>
@@ -970,10 +988,13 @@ export default async function LeaguePage({
                           <div className="flex min-w-0 items-center justify-end gap-2 text-right sm:gap-3">
                             <div className="min-w-0">
                               <p className="truncate text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500 sm:text-xs">
-                                {fixture.awayTeam?.short_name}
+                                {fixture.awayTeam?.short_name || "TBC"}
                               </p>
                               <h3 className="mt-0.5 truncate text-sm font-black tracking-tight sm:mt-1 sm:text-lg">
-                                {fixture.awayTeam?.name}
+                                {getFixtureTeamName(
+                                  fixture.awayTeam,
+                                  fixture.awayPlaceholder
+                                )}
                               </h3>
                             </div>
 

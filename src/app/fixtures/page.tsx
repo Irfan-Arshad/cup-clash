@@ -19,6 +19,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AppBadge } from "@/components/ui/app-badge";
 import { TeamFlag, type TeamFlagData } from "@/components/team/team-flag";
 import { formatUkKickoff } from "@/lib/format-date";
+import {
+  areFixtureTeamsConfirmed,
+  getFixtureTeamName,
+} from "@/lib/fixtures";
 
 export const dynamic = "force-dynamic";
 
@@ -26,10 +30,64 @@ type FixturesPageProps = {
   searchParams: Promise<{
     error?: string;
     success?: string;
+    stage?: string;
   }>;
 };
 
 type Team = TeamFlagData;
+
+const knockoutRoundOrder = [
+  "Round of 32",
+  "Round of 16",
+  "Quarter-finals",
+  "Semi-finals",
+  "Third place",
+  "Final",
+] as const;
+
+type StageFilter = "all" | "groups" | "knockouts";
+
+type FixtureStageFields = {
+  stage?: string | null;
+  round_name?: string | null;
+};
+
+function isKnockoutFixture(fixture: FixtureStageFields) {
+  const stage = fixture.stage?.toLowerCase();
+  const isKnockoutStage = stage === "knockout" || stage === "knockouts";
+  const isKnockoutRound = knockoutRoundOrder.some(
+    (roundName) => roundName === fixture.round_name
+  );
+
+  return isKnockoutStage || isKnockoutRound;
+}
+
+function getKnockoutRoundName(roundName: string | null) {
+  const normalized = roundName
+    ?.toLowerCase()
+    .replace(/[-_]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const aliases: Record<string, (typeof knockoutRoundOrder)[number]> = {
+    "round of 32": "Round of 32",
+    "round of 16": "Round of 16",
+    "quarter final": "Quarter-finals",
+    "quarter finals": "Quarter-finals",
+    quarterfinal: "Quarter-finals",
+    quarterfinals: "Quarter-finals",
+    "semi final": "Semi-finals",
+    "semi finals": "Semi-finals",
+    semifinal: "Semi-finals",
+    semifinals: "Semi-finals",
+    "third place": "Third place",
+    "third place play off": "Third place",
+    "third place playoff": "Third place",
+    final: "Final",
+  };
+
+  return (normalized && aliases[normalized]) || roundName || "Knockouts";
+}
 
 function FixtureStatusBadge({
   isFinished,
@@ -81,6 +139,10 @@ export default async function FixturesPage({
   const params = await searchParams;
   const error = params.error;
   const success = params.success;
+  const stageFilter: StageFilter =
+    params.stage === "groups" || params.stage === "knockouts"
+      ? params.stage
+      : "all";
 
   const supabase = await createClient();
 
@@ -114,6 +176,12 @@ export default async function FixturesPage({
       status,
       home_score,
       away_score,
+      home_team_id,
+      away_team_id,
+      home_placeholder,
+      away_placeholder,
+      bracket_slot,
+      next_match_number,
       home_team:teams!fixtures_home_team_id_fkey (
         name,
         short_name,
@@ -150,20 +218,82 @@ export default async function FixturesPage({
   const allFixtures = fixtures || [];
   type Fixture = (typeof allFixtures)[number];
 
-  const activeFixtures = allFixtures.filter(
+  const matchesStageFilter = (fixture: Fixture) => {
+    if (stageFilter === "groups") return !isKnockoutFixture(fixture);
+    if (stageFilter === "knockouts") return isKnockoutFixture(fixture);
+    return true;
+  };
+
+  const compareKickoffAscending = (a: Fixture, b: Fixture) =>
+    new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime();
+
+  const compareKnockoutFixtures = (a: Fixture, b: Fixture) => {
+    if (a.match_number != null && b.match_number != null) {
+      return a.match_number - b.match_number;
+    }
+
+    return compareKickoffAscending(a, b);
+  };
+
+  const groupKnockoutFixtures = (
+    fixturesToGroup: Fixture[],
+    compareFixtures = compareKnockoutFixtures
+  ) => {
+    const groups = new Map<string, Fixture[]>();
+
+    fixturesToGroup.forEach((fixture) => {
+      const roundName = getKnockoutRoundName(fixture.round_name);
+      groups.set(roundName, [...(groups.get(roundName) || []), fixture]);
+    });
+
+    return Array.from(groups.entries())
+      .map(([roundName, roundFixtures]) => ({
+        roundName,
+        fixtures: roundFixtures.sort(compareFixtures),
+      }))
+      .sort((a, b) => {
+        const aIndex = knockoutRoundOrder.indexOf(
+          a.roundName as (typeof knockoutRoundOrder)[number]
+        );
+        const bIndex = knockoutRoundOrder.indexOf(
+          b.roundName as (typeof knockoutRoundOrder)[number]
+        );
+
+        if (aIndex === -1 && bIndex === -1) {
+          return a.roundName.localeCompare(b.roundName);
+        }
+
+        if (aIndex === -1) return 1;
+        if (bIndex === -1) return -1;
+        return aIndex - bIndex;
+      });
+  };
+
+  const filteredFixtures = allFixtures.filter(matchesStageFilter);
+  const activeFixtures = filteredFixtures.filter(
     (fixture) => fixture.status !== "finished"
   );
-  const completedFixtures = allFixtures
-    .filter((fixture) => fixture.status === "finished")
-    .sort((a, b) => {
-      if (a.match_number != null && b.match_number != null) {
-        return b.match_number - a.match_number;
-      }
+  const activeGroupFixtures = activeFixtures
+    .filter((fixture) => !isKnockoutFixture(fixture))
+    .sort(compareKickoffAscending);
+  const activeKnockoutRounds = groupKnockoutFixtures(
+    activeFixtures.filter(isKnockoutFixture)
+  );
 
-      return (
+  const completedFixtures = filteredFixtures
+    .filter((fixture) => fixture.status === "finished")
+    .sort(
+      (a, b) =>
         new Date(b.kickoff_at).getTime() - new Date(a.kickoff_at).getTime()
-      );
-    });
+    );
+  const completedGroupFixtures = completedFixtures.filter(
+    (fixture) => !isKnockoutFixture(fixture)
+  );
+  const completedKnockoutRounds = groupKnockoutFixtures(
+    completedFixtures.filter(isKnockoutFixture),
+    (a, b) =>
+      new Date(b.kickoff_at).getTime() - new Date(a.kickoff_at).getTime()
+  );
 
   const upcomingCount =
     fixtures?.filter((fixture) => new Date(fixture.kickoff_at) > new Date())
@@ -176,7 +306,11 @@ export default async function FixturesPage({
       const isFixtureLocked = new Date(fixture.kickoff_at) <= new Date();
       const hasPrediction = predictionMap.has(fixture.id);
 
-      return !isFixtureLocked && !hasPrediction;
+      return (
+        areFixtureTeamsConfirmed(fixture) &&
+        !isFixtureLocked &&
+        !hasPrediction
+      );
     }).length || 0;
 
   let hasUnpredictedAnchor = false;
@@ -189,8 +323,9 @@ export default async function FixturesPage({
     const isLocked = kickoffAt <= new Date();
     const isFinished = fixture.status === "finished";
     const hasPrediction = Boolean(prediction);
+    const teamsConfirmed = areFixtureTeamsConfirmed(fixture);
     const isUpcoming = kickoffAt > new Date();
-    const isUnpredicted = !isLocked && !hasPrediction;
+    const isUnpredicted = teamsConfirmed && !isLocked && !hasPrediction;
     const anchorIds: string[] = [];
 
     if (isUnpredicted && !hasUnpredictedAnchor) {
@@ -219,6 +354,16 @@ export default async function FixturesPage({
         ? fixture.away_team[0]
         : fixture.away_team
     ) as Team | null;
+
+    const homeTeamName = getFixtureTeamName(
+      homeTeam,
+      fixture.home_placeholder
+    );
+    const awayTeamName = getFixtureTeamName(
+      awayTeam,
+      fixture.away_placeholder
+    );
+    const teamsTbc = !homeTeam || !awayTeam;
 
     return (
       <Card
@@ -252,11 +397,17 @@ export default async function FixturesPage({
                     <AppBadge variant="muted">{fixture.round_name}</AppBadge>
                   )}
 
-                  <FixtureStatusBadge
-                    isFinished={isFinished}
-                    isLocked={isLocked}
-                    hasPrediction={hasPrediction}
-                  />
+                  {(teamsConfirmed || isFinished || isLocked) && (
+                    <FixtureStatusBadge
+                      isFinished={isFinished}
+                      isLocked={isLocked}
+                      hasPrediction={hasPrediction}
+                    />
+                  )}
+
+                  {teamsTbc && (
+                    <AppBadge variant="muted">Teams TBC</AppBadge>
+                  )}
 
                   {prediction && (
                     <AppBadge variant="blue">
@@ -268,35 +419,37 @@ export default async function FixturesPage({
 
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-5">
                   <div className="flex min-w-0 items-center gap-2 sm:gap-4">
-                    <TeamFlag team={homeTeam} size="sm" />
+                    <div className="shrink-0">
+                      <TeamFlag team={homeTeam} size="sm" />
+                    </div>
 
                     <div className="min-w-0">
                       <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
-                        {homeTeam?.short_name}
+                        {homeTeam?.short_name || "TBC"}
                       </p>
                       <h2 className="mt-1 truncate text-base font-black tracking-tight sm:text-2xl">
-                        {homeTeam?.name}
+                        {homeTeamName}
                       </h2>
                     </div>
                   </div>
 
                   <div className="flex justify-center">
-                    <div className="rounded-full border border-white/10 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-slate-950 shadow-xl sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.28em]">
+                    <div className="whitespace-nowrap rounded-full border border-white/10 bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-slate-950 shadow-xl sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.28em]">
                       vs
                     </div>
                   </div>
 
                   <div className="flex min-w-0 items-center justify-end gap-2 text-right sm:gap-4">
-                    <div className="order-2">
+                    <div className="order-2 shrink-0">
                       <TeamFlag team={awayTeam} size="sm" />
                     </div>
 
                     <div className="order-1 min-w-0">
                       <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
-                        {awayTeam?.short_name}
+                        {awayTeam?.short_name || "TBC"}
                       </p>
                       <h2 className="mt-1 truncate text-base font-black tracking-tight sm:text-2xl">
-                        {awayTeam?.name}
+                        {awayTeamName}
                       </h2>
                     </div>
                   </div>
@@ -344,6 +497,13 @@ export default async function FixturesPage({
                   </div>
                 </div>
               </div>
+            ) : !teamsConfirmed ? (
+              <div className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-slate-300 sm:rounded-3xl sm:px-5 sm:py-4">
+                <p className="flex items-center gap-2 font-semibold">
+                  <Lock className="h-4 w-4 shrink-0" />
+                  Predictions open when both teams are confirmed.
+                </p>
+              </div>
             ) : isLocked ? (
               <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4 text-slate-300 sm:rounded-3xl sm:p-5">
                 <p className="flex items-center gap-2 font-semibold">
@@ -379,8 +539,8 @@ export default async function FixturesPage({
                   <div className="mt-3">
                     <PredictionForm
                       fixtureId={fixture.id}
-                      homeShortName={homeTeam?.short_name}
-                      awayShortName={awayTeam?.short_name}
+                      homeShortName={homeTeam?.short_name || homeTeamName}
+                      awayShortName={awayTeam?.short_name || awayTeamName}
                       initialHomeScore={prediction?.predicted_home_score ?? null}
                       initialAwayScore={prediction?.predicted_away_score ?? null}
                     />
@@ -390,8 +550,8 @@ export default async function FixturesPage({
                 <div className="hidden sm:block">
                   <PredictionForm
                     fixtureId={fixture.id}
-                    homeShortName={homeTeam?.short_name}
-                    awayShortName={awayTeam?.short_name}
+                    homeShortName={homeTeam?.short_name || homeTeamName}
+                    awayShortName={awayTeam?.short_name || awayTeamName}
                     initialHomeScore={prediction?.predicted_home_score ?? null}
                     initialAwayScore={prediction?.predicted_away_score ?? null}
                   />
@@ -492,21 +652,44 @@ export default async function FixturesPage({
         </Card>
       </div>
 
-      <div className="sticky top-[73px] z-20 mt-4 grid grid-cols-4 gap-2 rounded-2xl border border-white/10 bg-slate-950/80 p-2 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0">
-        <Button asChild variant="secondary" className="h-9 px-2 text-xs sm:h-10 sm:px-3 sm:text-sm">
-          <a href="#fixtures-list">All</a>
+      <div className="sticky top-[73px] z-20 mt-4 grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-slate-950/80 p-2 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0">
+        <Button
+          asChild
+          variant={stageFilter === "all" ? "default" : "secondary"}
+          className="h-9 px-2 text-xs sm:h-10 sm:px-3 sm:text-sm"
+        >
+          <Link
+            href="/fixtures"
+            aria-current={stageFilter === "all" ? "page" : undefined}
+          >
+            All
+          </Link>
         </Button>
 
-        <Button asChild variant="secondary" className="h-9 px-2 text-xs sm:h-10 sm:px-3 sm:text-sm">
-          <a href="#unpredicted-fixtures">Unpredicted</a>
+        <Button
+          asChild
+          variant={stageFilter === "groups" ? "default" : "secondary"}
+          className="h-9 px-2 text-xs sm:h-10 sm:px-3 sm:text-sm"
+        >
+          <Link
+            href="/fixtures?stage=groups"
+            aria-current={stageFilter === "groups" ? "page" : undefined}
+          >
+            Groups
+          </Link>
         </Button>
 
-        <Button asChild variant="secondary" className="h-9 px-2 text-xs sm:h-10 sm:px-3 sm:text-sm">
-          <a href="#predicted-fixtures">Predicted</a>
-        </Button>
-
-        <Button asChild variant="secondary" className="h-9 px-2 text-xs sm:h-10 sm:px-3 sm:text-sm">
-          <a href="#upcoming-fixtures">Upcoming</a>
+        <Button
+          asChild
+          variant={stageFilter === "knockouts" ? "default" : "secondary"}
+          className="h-9 px-2 text-xs sm:h-10 sm:px-3 sm:text-sm"
+        >
+          <Link
+            href="/fixtures?stage=knockouts"
+            aria-current={stageFilter === "knockouts" ? "page" : undefined}
+          >
+            Knockouts
+          </Link>
         </Button>
       </div>
 
@@ -523,9 +706,47 @@ export default async function FixturesPage({
       )}
 
       <div id="fixtures-list" className="mt-4 space-y-3 sm:mt-8 sm:space-y-5">
-        {activeFixtures.map((fixture) => renderFixtureCard(fixture))}
+        {activeGroupFixtures.length > 0 && (
+          <section className="space-y-3 sm:space-y-5">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-black tracking-tight text-white sm:text-2xl">
+                Group Stage
+              </h2>
+              <AppBadge variant="slate">
+                {activeGroupFixtures.length} active
+              </AppBadge>
+            </div>
 
-        {allFixtures.length > 0 && activeFixtures.length === 0 && (
+            {activeGroupFixtures.map((fixture) => renderFixtureCard(fixture))}
+          </section>
+        )}
+
+        {activeKnockoutRounds.length > 0 && (
+          <section className="space-y-4 sm:space-y-6">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-lg font-black tracking-tight text-white sm:text-2xl">
+                Knockouts
+              </h2>
+              <AppBadge variant="slate">
+                {activeKnockoutRounds.reduce(
+                  (total, round) => total + round.fixtures.length,
+                  0
+                )} active
+              </AppBadge>
+            </div>
+
+            {activeKnockoutRounds.map((round) => (
+              <div key={round.roundName} className="space-y-3 sm:space-y-5">
+                <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-slate-300 sm:text-base">
+                  {round.roundName}
+                </h3>
+                {round.fixtures.map((fixture) => renderFixtureCard(fixture))}
+              </div>
+            ))}
+          </section>
+        )}
+
+        {filteredFixtures.length > 0 && activeFixtures.length === 0 && (
           <Card className="glass-card text-white">
             <CardContent className="flex flex-col items-center justify-center px-6 py-8 text-center">
               <Clock className="mb-3 h-10 w-10 text-slate-500" />
@@ -549,24 +770,85 @@ export default async function FixturesPage({
             </summary>
 
             <div className="mt-3 space-y-3 sm:mt-5 sm:space-y-5">
-              {completedFixtures.map((fixture) => renderFixtureCard(fixture))}
+              {completedGroupFixtures.length > 0 && (
+                <section className="space-y-3 sm:space-y-5">
+                  <h2 className="text-lg font-black tracking-tight text-white sm:text-xl">
+                    Group Stage
+                  </h2>
+                  {completedGroupFixtures.map((fixture) =>
+                    renderFixtureCard(fixture)
+                  )}
+                </section>
+              )}
+
+              {completedKnockoutRounds.length > 0 && (
+                <section className="space-y-4 sm:space-y-6">
+                  <h2 className="text-lg font-black tracking-tight text-white sm:text-xl">
+                    Knockouts
+                  </h2>
+                  {completedKnockoutRounds.map((round) => (
+                    <div
+                      key={round.roundName}
+                      className="space-y-3 sm:space-y-5"
+                    >
+                      <h3 className="text-sm font-bold uppercase tracking-[0.18em] text-slate-300">
+                        {round.roundName}
+                      </h3>
+                      {round.fixtures.map((fixture) =>
+                        renderFixtureCard(fixture)
+                      )}
+                    </div>
+                  ))}
+                </section>
+              )}
             </div>
           </details>
         )}
 
-        {(!fixtures || fixtures.length === 0) && (
+        {stageFilter === "knockouts" && filteredFixtures.length === 0 && (
           <Card className="glass-card text-white">
-            <CardContent className="flex flex-col items-center justify-center px-6 py-12 text-center">
-              <Clock className="mb-4 h-12 w-12 text-slate-500" />
-              <h2 className="text-2xl font-bold tracking-tight">
-                No fixtures yet
+            <CardContent className="flex flex-col items-center justify-center px-6 py-8 text-center">
+              <Clock className="mb-3 h-10 w-10 text-slate-500" />
+              <h2 className="text-xl font-bold tracking-tight">
+                No knockout fixtures yet
               </h2>
               <p className="mt-2 max-w-md text-slate-400">
-                Fixtures will appear here once they have been added.
+                Knockout placeholders will appear here once they are added.
               </p>
             </CardContent>
           </Card>
         )}
+
+        {stageFilter !== "knockouts" &&
+          allFixtures.length > 0 &&
+          filteredFixtures.length === 0 && (
+            <Card className="glass-card text-white">
+              <CardContent className="flex flex-col items-center justify-center px-6 py-8 text-center">
+                <Clock className="mb-3 h-10 w-10 text-slate-500" />
+                <h2 className="text-xl font-bold tracking-tight">
+                  No fixtures in this stage
+                </h2>
+                <p className="mt-2 max-w-md text-slate-400">
+                  Try another stage filter to view available fixtures.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+        {stageFilter !== "knockouts" &&
+          (!fixtures || fixtures.length === 0) && (
+            <Card className="glass-card text-white">
+              <CardContent className="flex flex-col items-center justify-center px-6 py-12 text-center">
+                <Clock className="mb-4 h-12 w-12 text-slate-500" />
+                <h2 className="text-2xl font-bold tracking-tight">
+                  No fixtures yet
+                </h2>
+                <p className="mt-2 max-w-md text-slate-400">
+                  Fixtures will appear here once they have been added.
+                </p>
+              </CardContent>
+            </Card>
+          )}
       </div>
     </AppShell>
   );

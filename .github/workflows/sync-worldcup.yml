@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 name: Sync World Cup data
+=======
+name: Sync World Cup
+>>>>>>> 172c63a (add world cup sync api route)
 
 on:
   schedule:
@@ -8,6 +12,7 @@ on:
 jobs:
   sync-worldcup:
     runs-on: ubuntu-latest
+<<<<<<< HEAD
 
     steps:
       - name: Call Cup Clash sync endpoint
@@ -15,3 +20,14 @@ jobs:
           curl --fail --show-error --silent \
             -H "Authorization: Bearer ${{ secrets.WORLD_CUP_SYNC_SECRET }}" \
             "https://cup-clash-rose.vercel.app/api/cron/sync-worldcup"
+=======
+    timeout-minutes: 5
+    steps:
+      - name: Trigger World Cup sync
+        env:
+          WORLD_CUP_SYNC_SECRET: ${{ secrets.WORLD_CUP_SYNC_SECRET }}
+        run: |
+          curl --fail --show-error --silent \
+            --header "Authorization: Bearer ${WORLD_CUP_SYNC_SECRET}" \
+            https://cup-clash-rose.vercel.app/api/cron/sync-worldcup
+>>>>>>> 172c63a (add world cup sync api route)

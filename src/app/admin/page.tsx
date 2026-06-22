@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { formatUkKickoff } from "@/lib/format-date";
+import { getFixtureTeamName } from "@/lib/fixtures";
 import {
   Select,
   SelectContent,
@@ -73,6 +74,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       round_name,
       home_score,
       away_score,
+      home_team_id,
+      away_team_id,
+      home_placeholder,
+      away_placeholder,
+      bracket_slot,
+      next_match_number,
       home_team:teams!fixtures_home_team_id_fkey (
         name,
         short_name,
@@ -170,6 +177,16 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         : fixture.away_team
     ) as Team | null;
 
+    const homeTeamName = getFixtureTeamName(
+      homeTeam,
+      fixture.home_placeholder
+    );
+    const awayTeamName = getFixtureTeamName(
+      awayTeam,
+      fixture.away_placeholder
+    );
+    const teamsTbc = !homeTeam || !awayTeam;
+
     const isFinished = fixture.status === "finished";
     const anchorIds: string[] = [];
 
@@ -224,6 +241,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                       "Needs result"
                     )}
                   </AppBadge>
+
+                  {teamsTbc && (
+                    <AppBadge variant="muted">Teams TBC</AppBadge>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-5">
@@ -232,10 +253,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
                     <div className="min-w-0">
                       <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
-                        {homeTeam?.short_name}
+                        {homeTeam?.short_name || "TBC"}
                       </p>
                       <h3 className="mt-1 truncate text-base font-black tracking-tight sm:text-xl">
-                        {homeTeam?.name}
+                        {homeTeamName}
                       </h3>
                     </div>
                   </div>
@@ -253,10 +274,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
                     <div className="order-1 min-w-0">
                       <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
-                        {awayTeam?.short_name}
+                        {awayTeam?.short_name || "TBC"}
                       </p>
                       <h3 className="mt-1 truncate text-base font-black tracking-tight sm:text-xl">
-                        {awayTeam?.name}
+                        {awayTeamName}
                       </h3>
                     </div>
                   </div>
@@ -275,6 +296,12 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     </span>
                   )}
                 </div>
+
+                {teamsTbc && (
+                  <p className="mt-3 text-sm text-slate-400">
+                    Predictions open when both teams are confirmed.
+                  </p>
+                )}
               </div>
 
               {isFinished && (
@@ -293,8 +320,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           <div className="px-4 py-4 sm:px-6 sm:py-5">
             <FixtureResultForm
               fixtureId={fixture.id}
-              homeShortName={homeTeam?.short_name}
-              awayShortName={awayTeam?.short_name}
+              homeShortName={homeTeam?.short_name || homeTeamName}
+              awayShortName={awayTeam?.short_name || awayTeamName}
               initialHomeScore={fixture.home_score}
               initialAwayScore={fixture.away_score}
               initialStatus={fixture.status}

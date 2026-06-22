@@ -23,6 +23,10 @@ import { AppShell } from "@/components/layout/app-shell";
 import { PageHero } from "@/components/layout/page-hero";
 import { CopyInviteCode } from "@/components/league/copy-invite-code";
 import { formatUkKickoff } from "@/lib/format-date";
+import {
+  areFixtureTeamsConfirmed,
+  getFixtureTeamName,
+} from "@/lib/fixtures";
 
 export const dynamic = "force-dynamic";
 
@@ -84,6 +88,12 @@ export default async function DashboardPage() {
       status,
       match_number,
       group_name,
+      home_team_id,
+      away_team_id,
+      home_placeholder,
+      away_placeholder,
+      bracket_slot,
+      next_match_number,
       home_team:teams!fixtures_home_team_id_fkey (
         name,
         short_name,
@@ -120,7 +130,9 @@ export default async function DashboardPage() {
     [];
 
   const missingPredictions = upcomingFixtures.filter(
-    (fixture) => !predictionFixtureIds.has(fixture.id)
+    (fixture) =>
+      areFixtureTeamsConfirmed(fixture) &&
+      !predictionFixtureIds.has(fixture.id)
   ).length;
 
   const predictionsMade = userPredictions?.length || 0;
@@ -148,6 +160,21 @@ export default async function DashboardPage() {
   const nextFixturePredicted = nextFixture
     ? predictionFixtureIds.has(nextFixture.id)
     : false;
+
+  const nextFixtureTeamsTbc =
+    !nextFixtureHomeTeam || !nextFixtureAwayTeam;
+  const nextFixtureHomeName = nextFixture
+    ? getFixtureTeamName(
+        nextFixtureHomeTeam,
+        nextFixture.home_placeholder
+      )
+    : "Team TBC";
+  const nextFixtureAwayName = nextFixture
+    ? getFixtureTeamName(
+        nextFixtureAwayTeam,
+        nextFixture.away_placeholder
+      )
+    : "Team TBC";
 
   const displayName =
     profile?.display_name || user.user_metadata.display_name || "Player";
@@ -219,8 +246,20 @@ export default async function DashboardPage() {
             </div>
 
             {nextFixture && (
-              <AppBadge variant={nextFixturePredicted ? "emerald" : "gold"}>
-                {nextFixturePredicted ? "Predicted" : "Needs pick"}
+              <AppBadge
+                variant={
+                  nextFixtureTeamsTbc
+                    ? "muted"
+                    : nextFixturePredicted
+                      ? "emerald"
+                      : "gold"
+                }
+              >
+                {nextFixtureTeamsTbc
+                  ? "Teams TBC"
+                  : nextFixturePredicted
+                    ? "Predicted"
+                    : "Needs pick"}
               </AppBadge>
             )}
           </div>
@@ -244,10 +283,10 @@ export default async function DashboardPage() {
                   <TeamFlag team={nextFixtureHomeTeam} size="sm" />
                   <div className="min-w-0">
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
-                      {nextFixtureHomeTeam?.short_name}
+                      {nextFixtureHomeTeam?.short_name || "TBC"}
                     </p>
                     <p className="mt-1 truncate text-sm font-black">
-                      {nextFixtureHomeTeam?.name}
+                      {nextFixtureHomeName}
                     </p>
                   </div>
                 </div>
@@ -262,10 +301,10 @@ export default async function DashboardPage() {
                   </div>
                   <div className="order-1 min-w-0">
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
-                      {nextFixtureAwayTeam?.short_name}
+                      {nextFixtureAwayTeam?.short_name || "TBC"}
                     </p>
                     <p className="mt-1 truncate text-sm font-black">
-                      {nextFixtureAwayTeam?.name}
+                      {nextFixtureAwayName}
                     </p>
                   </div>
                 </div>
@@ -275,6 +314,12 @@ export default async function DashboardPage() {
                 <CalendarDays className="h-4 w-4" />
                 {formatUkKickoff(nextFixture.kickoff_at)}
               </p>
+
+              {nextFixtureTeamsTbc && (
+                <p className="mt-3 text-xs text-slate-400">
+                  Predictions open when both teams are confirmed.
+                </p>
+              )}
             </div>
           ) : (
             <p className="mt-4 text-sm leading-6 text-slate-400">
@@ -417,8 +462,20 @@ export default async function DashboardPage() {
                     </AppBadge>
                   )}
 
-                  <AppBadge variant={nextFixturePredicted ? "emerald" : "gold"}>
-                    {nextFixturePredicted ? "Predicted" : "Needs pick"}
+                  <AppBadge
+                    variant={
+                      nextFixtureTeamsTbc
+                        ? "muted"
+                        : nextFixturePredicted
+                          ? "emerald"
+                          : "gold"
+                    }
+                  >
+                    {nextFixtureTeamsTbc
+                      ? "Teams TBC"
+                      : nextFixturePredicted
+                        ? "Predicted"
+                        : "Needs pick"}
                   </AppBadge>
                 </div>
 
@@ -427,10 +484,10 @@ export default async function DashboardPage() {
                     <TeamFlag team={nextFixtureHomeTeam} size="sm" />
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
-                        {nextFixtureHomeTeam?.short_name}
+                        {nextFixtureHomeTeam?.short_name || "TBC"}
                       </p>
                       <p className="mt-1 text-lg font-black">
-                        {nextFixtureHomeTeam?.name}
+                        {nextFixtureHomeName}
                       </p>
                     </div>
                   </div>
@@ -447,10 +504,10 @@ export default async function DashboardPage() {
                     </div>
                     <div className="sm:order-1">
                       <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
-                        {nextFixtureAwayTeam?.short_name}
+                        {nextFixtureAwayTeam?.short_name || "TBC"}
                       </p>
                       <p className="mt-1 text-lg font-black">
-                        {nextFixtureAwayTeam?.name}
+                        {nextFixtureAwayName}
                       </p>
                     </div>
                   </div>
@@ -460,6 +517,12 @@ export default async function DashboardPage() {
                   <CalendarDays className="h-4 w-4" />
                   {formatUkKickoff(nextFixture.kickoff_at)}
                 </p>
+
+                {nextFixtureTeamsTbc && (
+                  <p className="mt-3 text-sm text-slate-400">
+                    Predictions open when both teams are confirmed.
+                  </p>
+                )}
               </div>
             ) : (
               <p className="mt-4 text-sm leading-6 text-slate-400">
