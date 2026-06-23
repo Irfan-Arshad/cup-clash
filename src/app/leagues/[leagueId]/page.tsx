@@ -182,6 +182,21 @@ export default async function LeaguePage({
 
   const userIds = memberRows?.map((member) => member.user_id) || [];
 
+  const { data: championAwardRows } =
+    userIds.length > 0
+      ? await supabase
+          .from("league_awards")
+          .select("user_id")
+          .eq("league_id", leagueId)
+          .eq("competition_year", 2026)
+          .eq("award_type", "league_champion")
+          .in("user_id", userIds)
+      : { data: [] };
+
+  const championUserIds = new Set(
+    championAwardRows?.map((award) => award.user_id) || []
+  );
+
   const { data: predictionCountRows } = await supabase.rpc(
     "get_league_prediction_counts",
     {
@@ -719,8 +734,23 @@ export default async function LeaguePage({
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-base font-black sm:text-lg">
-                              #{rank} {row.displayName}
+                              #{rank}{" "}
+                              <Link
+                                href={`/profile/${row.userId}`}
+                                className="transition hover:text-emerald-300 hover:underline"
+                              >
+                                {row.displayName}
+                              </Link>
                             </p>
+
+                            {championUserIds.has(row.userId) && (
+                              <AppBadge variant="gold" className="px-2 py-0.5">
+                                <span aria-hidden="true">🏆</span>
+                                <span className="sr-only">
+                                  2026 league champion
+                                </span>
+                              </AppBadge>
+                            )}
 
                             {isCurrentUser && (
                               <AppBadge variant="emerald">You</AppBadge>

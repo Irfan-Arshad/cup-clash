@@ -18,10 +18,10 @@ import { AppBadge } from "@/components/ui/app-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
-import { updateDisplayName } from "@/actions/profile";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { SubmitButton } from "@/components/ui/submit-button";
+import {
+  ProfilePersonalisationForm,
+  type ProfilePersonalisationTeam,
+} from "@/components/profile/profile-personalisation-form";
 
 type ProfilePageProps = {
   searchParams: Promise<{
@@ -46,9 +46,21 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, display_name, email, is_admin, created_at")
+    .select(
+      "id, display_name, avatar_url, profile_tagline, banner_theme, accent_theme, selected_title, favourite_team_id, created_at, is_admin"
+    )
     .eq("id", user.id)
     .single();
+
+  if (!profile) {
+    redirect("/dashboard");
+  }
+
+  const { data: teamRows } = await supabase
+    .from("teams")
+    .select("id, name, short_name, flag_emoji, flag_url")
+    .order("name", { ascending: true });
+  const teams = (teamRows || []) as ProfilePersonalisationTeam[];
 
   const { data: memberships } = await supabase
     .from("league_members")
@@ -85,14 +97,14 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
 
   const totalPoints = fixturePoints + tournamentPoints;
 
-  const isAdmin = profile?.is_admin === true;
+  const isAdmin = profile.is_admin === true;
 
   return (
     <AppShell isAdmin={isAdmin}>
       <PageHero
-        eyebrow="Profile"
+        eyebrow="My Profile"
         title={profile?.display_name || "Your profile"}
-        description="View your Cup Clash account, league memberships, and prediction stats."
+        description="Manage your Cup Clash account, league memberships, and prediction stats."
         actions={
           <Button asChild variant="secondary">
             <Link href="/dashboard">
@@ -109,11 +121,16 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
         </div>
         )}
 
-        {success && (
+      {success && (
         <div className="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
             {decodeURIComponent(success)}
         </div>
         )}
+
+      <ProfilePersonalisationForm
+        initialProfile={profile}
+        teams={teams}
+      />
 
       <div className="mt-6 grid gap-4 md:grid-cols-4">
         <StatCard
@@ -158,45 +175,19 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
                   Account details
                 </h2>
                 <p className="mt-1 text-sm text-slate-400">
-                  Your Cup Clash identity.
+                  Private account information.
                 </p>
               </div>
             </div>
 
             <div className="mt-6 space-y-4">
               <div className="rounded-3xl border border-white/10 bg-slate-950/45 p-5">
-                <form action={updateDisplayName} className="space-y-3">
-                    <div className="space-y-2">
-                    <Label
-                        htmlFor="displayName"
-                        className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500"
-                    >
-                        Display name
-                    </Label>
-
-                    <Input
-                        id="displayName"
-                        name="displayName"
-                        defaultValue={profile?.display_name || ""}
-                        maxLength={40}
-                        required
-                        className="h-12 border-white/10 bg-slate-950 text-base font-bold"
-                    />
-                    </div>
-
-                    <SubmitButton className="h-11 w-full" pendingText="Updating...">
-                    Update display name
-                    </SubmitButton>
-                </form>
-                </div>
-
-              <div className="rounded-3xl border border-white/10 bg-slate-950/45 p-5">
                 <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
                   <Mail className="h-4 w-4" />
                   Email
                 </p>
                 <p className="mt-2 break-all text-sm font-semibold text-slate-200">
-                  {profile?.email || user.email || "Unknown"}
+                  {user.email || "Unknown"}
                 </p>
               </div>
 

@@ -15,6 +15,7 @@ import {
   updateTournamentWinner,
 } from "@/actions/admin";
 import { FixtureResultForm } from "@/components/admin/fixture-result-form";
+import { LeagueAwardsCard } from "@/components/admin/league-awards-card";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth";
 import { AppShell } from "@/components/layout/app-shell";
@@ -469,6 +470,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           </CardContent>
         </Card>
       </div>
+
+      <LeagueAwardsCard />
 
       <Card className="mt-4 pitch-card text-white sm:mt-6">
         <CardContent className="p-4 sm:p-8">

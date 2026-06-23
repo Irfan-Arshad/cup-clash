@@ -47,7 +47,7 @@ export function AppHeader({ isAdmin = false }: AppHeaderProps) {
     },
     { 
       href: "/profile",
-      label: "Profile",
+      label: "My Profile",
       icon: User, 
     },
   ];
