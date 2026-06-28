@@ -7,26 +7,33 @@ import {
   savePrediction,
   type SavePredictionState,
 } from "@/actions/predictions";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/ui/submit-button";
 
 type PredictionFormProps = {
   fixtureId: number;
+  isKnockout?: boolean;
+  homeTeamId?: number | null;
+  awayTeamId?: number | null;
   homeShortName?: string | null;
   awayShortName?: string | null;
   initialHomeScore?: number | null;
   initialAwayScore?: number | null;
+  initialAdvancingTeamId?: number | null;
 };
 
 const initialState: SavePredictionState = {};
 
 export function PredictionForm({
   fixtureId,
+  isKnockout = false,
+  homeTeamId,
+  awayTeamId,
   homeShortName,
   awayShortName,
   initialHomeScore,
   initialAwayScore,
+  initialAdvancingTeamId,
 }: PredictionFormProps) {
   const router = useRouter();
   const [state, formAction] = useActionState(savePrediction, initialState);
@@ -37,6 +44,22 @@ export function PredictionForm({
   const [savedAwayScore, setSavedAwayScore] = useState<number | null>(
     initialAwayScore ?? null
   );
+  const [savedAdvancingTeamId, setSavedAdvancingTeamId] = useState<
+    number | null
+  >(initialAdvancingTeamId ?? null);
+  const [homeScoreInput, setHomeScoreInput] = useState(
+    initialHomeScore === null || initialHomeScore === undefined
+      ? ""
+      : String(initialHomeScore)
+  );
+  const [awayScoreInput, setAwayScoreInput] = useState(
+    initialAwayScore === null || initialAwayScore === undefined
+      ? ""
+      : String(initialAwayScore)
+  );
+  const [selectedAdvancingTeamId, setSelectedAdvancingTeamId] = useState<
+    number | null
+  >(initialAdvancingTeamId ?? null);
 
   useEffect(() => {
     if (
@@ -47,12 +70,32 @@ export function PredictionForm({
     ) {
       setSavedHomeScore(state.predictedHomeScore);
       setSavedAwayScore(state.predictedAwayScore);
+      setSavedAdvancingTeamId(state.predictedAdvancingTeamId ?? null);
+      setSelectedAdvancingTeamId(state.predictedAdvancingTeamId ?? null);
       router.refresh();
     }
   }, [state, fixtureId, router]);
 
   const hasSavedPrediction =
     savedHomeScore !== null && savedAwayScore !== null;
+  const parsedHomeScore =
+    homeScoreInput === "" ? null : Number(homeScoreInput);
+  const parsedAwayScore =
+    awayScoreInput === "" ? null : Number(awayScoreInput);
+  const isDrawPrediction =
+    parsedHomeScore !== null &&
+    parsedAwayScore !== null &&
+    !Number.isNaN(parsedHomeScore) &&
+    !Number.isNaN(parsedAwayScore) &&
+    parsedHomeScore === parsedAwayScore;
+  const shouldShowAdvancingTeamChoice =
+    isKnockout && homeTeamId && awayTeamId && isDrawPrediction;
+  const savedAdvancingTeamName =
+    savedAdvancingTeamId === homeTeamId
+      ? homeShortName
+      : savedAdvancingTeamId === awayTeamId
+        ? awayShortName
+        : null;
 
   return (
     <div className="space-y-4">
@@ -66,6 +109,12 @@ export function PredictionForm({
           <p className="mt-2 text-3xl font-black">
             {savedHomeScore} - {savedAwayScore}
           </p>
+
+          {isKnockout && savedAdvancingTeamName && (
+            <p className="mt-1 text-sm font-semibold text-emerald-200">
+              {savedAdvancingTeamName} through
+            </p>
+          )}
         </div>
       )}
 
@@ -108,7 +157,8 @@ export function PredictionForm({
                 name="homeScore"
                 type="number"
                 min="0"
-                defaultValue={savedHomeScore ?? ""}
+                value={homeScoreInput}
+                onChange={(event) => setHomeScoreInput(event.target.value)}
                 className="h-12 w-full border-white/10 bg-slate-950 text-center text-lg font-black sm:w-24"
                 required
               />
@@ -126,7 +176,8 @@ export function PredictionForm({
                 name="awayScore"
                 type="number"
                 min="0"
-                defaultValue={savedAwayScore ?? ""}
+                value={awayScoreInput}
+                onChange={(event) => setAwayScoreInput(event.target.value)}
                 className="h-12 w-full border-white/10 bg-slate-950 text-center text-lg font-black sm:w-24"
                 required
               />
@@ -140,6 +191,37 @@ export function PredictionForm({
             </SubmitButton>
           </div>
         </div>
+
+        {shouldShowAdvancingTeamChoice && (
+          <fieldset className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <legend className="px-1 text-sm font-semibold text-slate-200">
+              Who goes through?
+            </legend>
+
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {[
+                { id: homeTeamId, label: homeShortName },
+                { id: awayTeamId, label: awayShortName },
+              ].map((team) => (
+                <label
+                  key={team.id}
+                  className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm font-bold text-slate-100 transition hover:bg-white/10 has-[:checked]:border-emerald-400/50 has-[:checked]:bg-emerald-400/10 has-[:checked]:text-emerald-100"
+                >
+                  <input
+                    type="radio"
+                    name="predictedAdvancingTeamId"
+                    value={team.id}
+                    checked={selectedAdvancingTeamId === team.id}
+                    onChange={() => setSelectedAdvancingTeamId(team.id)}
+                    required
+                    className="h-4 w-4 accent-emerald-400"
+                  />
+                  {team.label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
       </form>
     </div>
   );

@@ -1,6 +1,10 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import {
+  areFixtureTeamsConfirmed,
+  isKnockoutFixture,
+} from "@/lib/fixtures";
 
 export type SavePredictionState = {
   success?: string;
@@ -8,6 +12,7 @@ export type SavePredictionState = {
   fixtureId?: number;
   predictedHomeScore?: number;
   predictedAwayScore?: number;
+  predictedAdvancingTeamId?: number | null;
 };
 
 export async function savePrediction(
@@ -29,6 +34,9 @@ export async function savePrediction(
   const fixtureId = Number(formData.get("fixtureId"));
   const homeScore = Number(formData.get("homeScore"));
   const awayScore = Number(formData.get("awayScore"));
+  const selectedAdvancingTeamId = Number(
+    formData.get("predictedAdvancingTeamId")
+  );
 
   if (!fixtureId || Number.isNaN(homeScore) || Number.isNaN(awayScore)) {
     return {
@@ -45,7 +53,7 @@ export async function savePrediction(
   const { data: fixture, error: fixtureError } = await supabase
     .from("fixtures")
     .select(
-      "id, kickoff_at, home_team_id, away_team_id, home_placeholder, away_placeholder, bracket_slot, next_match_number"
+      "id, kickoff_at, stage, round_name, home_team_id, away_team_id, home_placeholder, away_placeholder, bracket_slot, next_match_number"
     )
     .eq("id", fixtureId)
     .single();
@@ -56,7 +64,7 @@ export async function savePrediction(
     };
   }
 
-  if (fixture.home_team_id === null || fixture.away_team_id === null) {
+  if (!areFixtureTeamsConfirmed(fixture)) {
     return {
       error: "Predictions open when both teams are confirmed.",
     };
@@ -71,12 +79,32 @@ export async function savePrediction(
     };
   }
 
+  let predictedAdvancingTeamId: number | null = null;
+
+  if (isKnockoutFixture(fixture)) {
+    if (homeScore > awayScore) {
+      predictedAdvancingTeamId = fixture.home_team_id;
+    } else if (awayScore > homeScore) {
+      predictedAdvancingTeamId = fixture.away_team_id;
+    } else if (
+      selectedAdvancingTeamId === fixture.home_team_id ||
+      selectedAdvancingTeamId === fixture.away_team_id
+    ) {
+      predictedAdvancingTeamId = selectedAdvancingTeamId;
+    } else {
+      return {
+        error: "Choose who goes through for a knockout draw prediction.",
+      };
+    }
+  }
+
   const { error } = await supabase.from("predictions").upsert(
     {
       fixture_id: fixtureId,
       user_id: user.id,
       predicted_home_score: homeScore,
       predicted_away_score: awayScore,
+      predicted_advancing_team_id: predictedAdvancingTeamId,
       updated_at: new Date().toISOString(),
     },
     {
@@ -95,5 +123,6 @@ export async function savePrediction(
     fixtureId,
     predictedHomeScore: homeScore,
     predictedAwayScore: awayScore,
+    predictedAdvancingTeamId,
   };
 }

@@ -20,12 +20,18 @@ import { AppShell } from "@/components/layout/app-shell";
 import { PageHero } from "@/components/layout/page-hero";
 import { TeamFlag, type TeamFlagData } from "@/components/team/team-flag";
 import { AppBadge } from "@/components/ui/app-badge";
+import { CountdownTimer } from "@/components/ui/countdown-timer";
 import { StatCard } from "@/components/ui/stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { formatUkKickoff } from "@/lib/format-date";
-import { getFixtureTeamName } from "@/lib/fixtures";
+import { getFixtureTeamName, isKnockoutFixture } from "@/lib/fixtures";
+import {
+  isCorrectOutcomePrediction,
+  isExactPrediction,
+} from "@/lib/prediction-scoring";
+import { getTournamentWinnerPickLockState } from "@/lib/tournament-winner-lock";
 import {
   Select,
   SelectContent,
@@ -85,6 +91,7 @@ type FinishedFixtureBreakdown = {
     displayName: string;
     predictedHome: number;
     predictedAway: number;
+    predictedAdvancingTeamName: string | null;
     points: number;
   }[];
 };
@@ -93,12 +100,6 @@ type PredictionCountRow = {
   member_user_id: string;
   predictions_made: number | string | null;
 };
-
-function getResult(home: number, away: number) {
-  if (home > away) return "HOME";
-  if (away > home) return "AWAY";
-  return "DRAW";
-}
 
 function getRankLabel(rank: number) {
   if (rank === 1) return "Top of the table";
@@ -277,6 +278,7 @@ export default async function LeaguePage({
             user_id,
             predicted_home_score,
             predicted_away_score,
+            predicted_advancing_team_id,
             points,
             fixtures (
               id,
@@ -284,8 +286,11 @@ export default async function LeaguePage({
               match_number,
               venue,
               group_name,
+              stage,
+              round_name,
               home_score,
               away_score,
+              winning_team_id,
               status,
               home_team_id,
               away_team_id,
@@ -294,12 +299,14 @@ export default async function LeaguePage({
               bracket_slot,
               next_match_number,
               home_team:teams!fixtures_home_team_id_fkey (
+                id,
                 name,
                 short_name,
                 flag_emoji,
                 flag_url
               ),
               away_team:teams!fixtures_away_team_id_fkey (
+                id,
                 name,
                 short_name,
                 flag_emoji,
@@ -337,6 +344,7 @@ export default async function LeaguePage({
   );
 
   const isAdmin = currentUserProfile?.is_admin === true;
+  const winnerPickLock = await getTournamentWinnerPickLockState(supabase);
 
   const leaderboard: LeaderboardRow[] =
     memberRows?.map((member) => {
@@ -358,10 +366,7 @@ export default async function LeaguePage({
           ? prediction.fixtures[0]
           : prediction.fixtures;
 
-        return (
-          fixture?.home_score === prediction.predicted_home_score &&
-          fixture?.away_score === prediction.predicted_away_score
-        );
+        return fixture ? isExactPrediction(prediction, fixture) : false;
       }).length;
 
       const correctResults = finishedPredictions.filter((prediction) => {
@@ -369,23 +374,7 @@ export default async function LeaguePage({
           ? prediction.fixtures[0]
           : prediction.fixtures;
 
-        if (
-          fixture?.home_score === null ||
-          fixture?.away_score === null ||
-          fixture?.home_score === undefined ||
-          fixture?.away_score === undefined
-        ) {
-          return false;
-        }
-
-        const predictedResult = getResult(
-          prediction.predicted_home_score,
-          prediction.predicted_away_score
-        );
-
-        const actualResult = getResult(fixture.home_score, fixture.away_score);
-
-        return predictedResult === actualResult;
+        return fixture ? isCorrectOutcomePrediction(prediction, fixture) : false;
       }).length;
 
       const fixturePoints = memberPredictions.reduce(
@@ -452,6 +441,15 @@ export default async function LeaguePage({
         ? fixture.away_team[0]
         : fixture.away_team
     ) as Team | null;
+    const predictedAdvancingTeamName =
+      isKnockoutFixture(fixture) &&
+      prediction.predicted_home_score === prediction.predicted_away_score
+        ? prediction.predicted_advancing_team_id === fixture.home_team_id
+          ? getFixtureTeamName(homeTeam, fixture.home_placeholder)
+          : prediction.predicted_advancing_team_id === fixture.away_team_id
+            ? getFixtureTeamName(awayTeam, fixture.away_placeholder)
+            : null
+        : null;
 
     if (!finishedFixturePredictionGroups.has(fixture.id)) {
       finishedFixturePredictionGroups.set(fixture.id, {
@@ -475,6 +473,7 @@ export default async function LeaguePage({
       displayName: profileMap.get(prediction.user_id) || "Player",
       predictedHome: prediction.predicted_home_score,
       predictedAway: prediction.predicted_away_score,
+      predictedAdvancingTeamName,
       points: prediction.points || 0,
     });
   }
@@ -844,6 +843,10 @@ export default async function LeaguePage({
                 </span>
               </p>
 
+              <div className="mt-3 inline-flex rounded-full border border-yellow-300/20 bg-yellow-300/10 px-3 py-1.5 text-xs font-bold text-yellow-100 sm:text-sm">
+                <CountdownTimer locksAt={winnerPickLock.locksAt} />
+              </div>
+
               {currentUserPick && (
                 <div className="mt-4 flex items-center gap-3 rounded-2xl border border-yellow-300/20 bg-yellow-300/10 px-4 py-3 sm:mt-5 sm:gap-4 sm:rounded-3xl sm:px-5 sm:py-4">
                   <TeamFlag team={currentUserPickTeam} size="sm" />
@@ -860,35 +863,41 @@ export default async function LeaguePage({
               )}
             </div>
 
-            <form action={saveTournamentPick} className="space-y-3">
-              <input type="hidden" name="leagueId" value={league.id} />
+            {winnerPickLock.isLocked ? (
+              <div className="rounded-2xl border border-white/10 bg-slate-950/45 px-4 py-3 text-sm font-semibold text-slate-300">
+                Winner predictions are locked.
+              </div>
+            ) : (
+              <form action={saveTournamentPick} className="space-y-3">
+                <input type="hidden" name="leagueId" value={league.id} />
 
-              <Select
-                name="teamId"
-                defaultValue={String(currentUserPick?.team_id || "")}
-              >
-                <SelectTrigger className="h-12 border-white/10 bg-slate-950">
-                  <SelectValue placeholder="Choose your winner" />
-                </SelectTrigger>
+                <Select
+                  name="teamId"
+                  defaultValue={String(currentUserPick?.team_id || "")}
+                >
+                  <SelectTrigger className="h-12 border-white/10 bg-slate-950">
+                    <SelectValue placeholder="Choose your winner" />
+                  </SelectTrigger>
 
-                <SelectContent>
-                  {teams?.map((team) => (
-                    <SelectItem key={team.id} value={String(team.id)}>
-                      {team.name} ({team.short_name})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  <SelectContent>
+                    {teams?.map((team) => (
+                      <SelectItem key={team.id} value={String(team.id)}>
+                        {team.name} ({team.short_name})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-              <SubmitButton
-                className="h-12 w-full"
-                pendingText={
-                  currentUserPick ? "Updating pick..." : "Saving pick..."
-                }
-              >
-                {currentUserPick ? "Update winner pick" : "Save winner pick"}
-              </SubmitButton>
-            </form>
+                <SubmitButton
+                  className="h-12 w-full"
+                  pendingText={
+                    currentUserPick ? "Updating pick..." : "Saving pick..."
+                  }
+                >
+                  {currentUserPick ? "Update winner pick" : "Save winner pick"}
+                </SubmitButton>
+              </form>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -1054,6 +1063,8 @@ export default async function LeaguePage({
                                 <span className="text-slate-200">
                                   {prediction.predictedHome} -{" "}
                                   {prediction.predictedAway}
+                                  {prediction.predictedAdvancingTeamName &&
+                                    `, ${prediction.predictedAdvancingTeamName} through`}
                                 </span>
                               </p>
                             </div>

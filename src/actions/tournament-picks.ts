@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getTournamentWinnerPickLockState } from "@/lib/tournament-winner-lock";
 
 export async function saveTournamentPick(formData: FormData) {
   const supabase = await createClient();
@@ -20,6 +21,16 @@ export async function saveTournamentPick(formData: FormData) {
 
   if (!leagueId || !teamId || Number.isNaN(teamId)) {
     redirect(`/dashboard?error=Invalid tournament pick`);
+  }
+
+  const winnerPickLock = await getTournamentWinnerPickLockState(supabase);
+
+  if (winnerPickLock.isLocked) {
+    redirect(
+      `/leagues/${leagueId}?error=${encodeURIComponent(
+        "Tournament winner picks are now locked."
+      )}`
+    );
   }
 
   const { data: membership } = await supabase

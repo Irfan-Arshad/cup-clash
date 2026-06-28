@@ -26,7 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { formatUkKickoff } from "@/lib/format-date";
-import { getFixtureTeamName } from "@/lib/fixtures";
+import { getFixtureTeamName, isKnockoutFixture } from "@/lib/fixtures";
 import {
   Select,
   SelectContent,
@@ -75,6 +75,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       round_name,
       home_score,
       away_score,
+      winning_team_id,
+      decided_by,
       home_team_id,
       away_team_id,
       home_placeholder,
@@ -187,6 +189,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       fixture.away_placeholder
     );
     const teamsTbc = !homeTeam || !awayTeam;
+    const knockoutFixture = isKnockoutFixture(fixture);
+    const winningTeamName =
+      fixture.winning_team_id === fixture.home_team_id
+        ? homeTeamName
+        : fixture.winning_team_id === fixture.away_team_id
+          ? awayTeamName
+          : null;
 
     const isFinished = fixture.status === "finished";
     const anchorIds: string[] = [];
@@ -246,6 +255,13 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   {teamsTbc && (
                     <AppBadge variant="muted">Teams TBC</AppBadge>
                   )}
+
+                  {knockoutFixture &&
+                    fixture.home_score === fixture.away_score &&
+                    !fixture.winning_team_id &&
+                    hasSubmittedScore(fixture) && (
+                      <AppBadge variant="red">Winner needed</AppBadge>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-5">
@@ -313,6 +329,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                   <p className="mt-1 text-2xl font-black sm:mt-2 sm:text-3xl">
                     {fixture.home_score} - {fixture.away_score}
                   </p>
+                  {knockoutFixture && winningTeamName && (
+                    <p className="mt-1 text-xs font-semibold text-emerald-100">
+                      {winningTeamName}{" "}
+                      {fixture.decided_by === "penalties"
+                        ? "on pens"
+                        : "through"}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -321,10 +345,15 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           <div className="px-4 py-4 sm:px-6 sm:py-5">
             <FixtureResultForm
               fixtureId={fixture.id}
+              isKnockout={knockoutFixture}
+              homeTeamId={fixture.home_team_id}
+              awayTeamId={fixture.away_team_id}
               homeShortName={homeTeam?.short_name || homeTeamName}
               awayShortName={awayTeam?.short_name || awayTeamName}
               initialHomeScore={fixture.home_score}
               initialAwayScore={fixture.away_score}
+              initialWinningTeamId={fixture.winning_team_id}
+              initialDecidedBy={fixture.decided_by}
               initialStatus={fixture.status}
             />
           </div>

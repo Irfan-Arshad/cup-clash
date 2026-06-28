@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth";
+import { isKnockoutFixture } from "@/lib/fixtures";
+import { recalculateFixturePredictionPoints } from "@/lib/prediction-recalculation";
 
 export type UpdateFixtureResultState = {
   error?: string;
@@ -12,6 +14,8 @@ export type UpdateFixtureResultState = {
   fixtureId?: number;
   homeScore?: number;
   awayScore?: number;
+  winningTeamId?: number | null;
+  decidedBy?: string | null;
   status?: "finished";
 };
 
@@ -22,6 +26,7 @@ export async function updateFixtureResult(
   const fixtureId = Number(formData.get("fixtureId"));
   const homeScore = Number(formData.get("homeScore"));
   const awayScore = Number(formData.get("awayScore"));
+  const selectedWinningTeamId = Number(formData.get("winningTeamId"));
   const timingId = `${fixtureId || "unknown"}:${Date.now()}:${Math.random()
     .toString(36)
     .slice(2)}`;
@@ -46,17 +51,62 @@ export async function updateFixtureResult(
       return { error: "Scores cannot be negative" };
     }
 
+    const { data: fixture, error: fixtureLoadError } = await supabase
+      .from("fixtures")
+      .select("id, stage, round_name, home_team_id, away_team_id")
+      .eq("id", fixtureId)
+      .single();
+
+    if (fixtureLoadError || !fixture) {
+      return { error: fixtureLoadError?.message || "Fixture not found" };
+    }
+
+    const fixtureUpdate: {
+      home_score: number;
+      away_score: number;
+      status: "finished";
+      winning_team_id?: number | null;
+      decided_by?: string | null;
+    } = {
+      home_score: homeScore,
+      away_score: awayScore,
+      status: "finished",
+    };
+
+    let winningTeamId: number | null = null;
+    let decidedBy: string | null = null;
+
+    if (isKnockoutFixture(fixture)) {
+      if (homeScore > awayScore) {
+        winningTeamId = fixture.home_team_id;
+        decidedBy = "normal";
+      } else if (awayScore > homeScore) {
+        winningTeamId = fixture.away_team_id;
+        decidedBy = "normal";
+      } else if (
+        selectedWinningTeamId === fixture.home_team_id ||
+        selectedWinningTeamId === fixture.away_team_id
+      ) {
+        winningTeamId = selectedWinningTeamId;
+        decidedBy = "penalties";
+      } else {
+        return {
+          error: "Choose who progressed for a drawn knockout fixture.",
+          fixtureId,
+        };
+      }
+
+      fixtureUpdate.winning_team_id = winningTeamId;
+      fixtureUpdate.decided_by = decidedBy;
+    }
+
     const fixtureUpdateTimingLabel = `updateFixtureResult fixture update ${timingId}`;
     console.time(fixtureUpdateTimingLabel);
     let fixtureUpdateError: { message: string } | null = null;
     try {
       const result = await supabase
         .from("fixtures")
-        .update({
-          home_score: homeScore,
-          away_score: awayScore,
-          status: "finished",
-        })
+        .update(fixtureUpdate)
         .eq("id", fixtureId);
 
       fixtureUpdateError = result.error;
@@ -68,24 +118,12 @@ export async function updateFixtureResult(
       return { error: fixtureUpdateError.message };
     }
 
-    const pointsRpcTimingLabel = `updateFixtureResult points RPC ${timingId}`;
-    console.time(pointsRpcTimingLabel);
-    let recalculateError: { message: string } | null = null;
+    const pointsTimingLabel = `updateFixtureResult points recalculation ${timingId}`;
+    console.time(pointsTimingLabel);
     try {
-      const result = await supabase.rpc(
-        "recalculate_fixture_prediction_points",
-        {
-          target_fixture_id: fixtureId,
-        }
-      );
-
-      recalculateError = result.error;
+      await recalculateFixturePredictionPoints(supabase, fixtureId);
     } finally {
-      console.timeEnd(pointsRpcTimingLabel);
-    }
-
-    if (recalculateError) {
-      return { error: recalculateError.message };
+      console.timeEnd(pointsTimingLabel);
     }
 
     const revalidateTimingLabel = `updateFixtureResult revalidatePath ${timingId}`;
@@ -104,6 +142,8 @@ export async function updateFixtureResult(
       fixtureId,
       homeScore,
       awayScore,
+      winningTeamId,
+      decidedBy,
       status: "finished",
     };
   } finally {
@@ -133,16 +173,7 @@ export async function recalculateAllFinishedFixtures() {
 
   try {
     for (const fixture of fixtures || []) {
-      const { error: recalculateError } = await supabase.rpc(
-        "recalculate_fixture_prediction_points",
-        {
-          target_fixture_id: fixture.id,
-        }
-      );
-
-      if (recalculateError) {
-        throw new Error(recalculateError.message);
-      }
+      await recalculateFixturePredictionPoints(supabase, fixture.id);
     }
   } catch (error) {
     redirect(

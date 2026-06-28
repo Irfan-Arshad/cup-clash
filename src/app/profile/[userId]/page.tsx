@@ -20,6 +20,7 @@ import { TeamFlag, type TeamFlagData } from "@/components/team/team-flag";
 import { AppBadge } from "@/components/ui/app-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { CountdownTimer } from "@/components/ui/countdown-timer";
 import { StatCard } from "@/components/ui/stat-card";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -27,6 +28,11 @@ import {
   getAccentThemeClasses,
   getBannerThemeClasses,
 } from "@/lib/profile-personalisation";
+import {
+  isCorrectOutcomePrediction,
+  isExactPrediction,
+} from "@/lib/prediction-scoring";
+import { getTournamentWinnerPickLockState } from "@/lib/tournament-winner-lock";
 
 export const dynamic = "force-dynamic";
 
@@ -49,14 +55,20 @@ type Membership = {
 
 type FixtureResult = {
   status: string;
+  stage: string | null;
+  round_name: string | null;
+  home_team_id: number | null;
+  away_team_id: number | null;
   home_score: number | null;
   away_score: number | null;
+  winning_team_id: number | null;
 };
 
 type Prediction = {
   user_id: string;
   predicted_home_score: number;
   predicted_away_score: number;
+  predicted_advancing_team_id: number | null;
   points: number | null;
   fixtures: FixtureResult | FixtureResult[] | null;
 };
@@ -111,12 +123,6 @@ const awardPriority: Record<string, number> = {
 
 function getAwardIcon(awardType: string) {
   return awardIcons[awardType] || "⭐";
-}
-
-function getResult(home: number, away: number) {
-  if (home > away) return "HOME";
-  if (away > home) return "AWAY";
-  return "DRAW";
 }
 
 function getInitials(displayName: string) {
@@ -211,6 +217,8 @@ export default async function PublicProfilePage({ params }: ProfilePageProps) {
     redirect("/auth/login");
   }
 
+  const winnerPickLock = await getTournamentWinnerPickLockState(supabase);
+
   const { data: viewerProfile } = await supabase
     .from("profiles")
     .select("is_admin")
@@ -287,11 +295,17 @@ export default async function PublicProfilePage({ params }: ProfilePageProps) {
           user_id,
           predicted_home_score,
           predicted_away_score,
+          predicted_advancing_team_id,
           points,
           fixtures (
             status,
+            stage,
+            round_name,
+            home_team_id,
+            away_team_id,
             home_score,
-            away_score
+            away_score,
+            winning_team_id
           )
         `
         )
@@ -425,29 +439,11 @@ export default async function PublicProfilePage({ params }: ProfilePageProps) {
         });
         const memberExactScores = finishedPredictions.filter((prediction) => {
           const fixture = getRelatedItem(prediction.fixtures);
-          return (
-            fixture?.home_score === prediction.predicted_home_score &&
-            fixture?.away_score === prediction.predicted_away_score
-          );
+          return fixture ? isExactPrediction(prediction, fixture) : false;
         }).length;
         const memberCorrectResults = finishedPredictions.filter((prediction) => {
           const fixture = getRelatedItem(prediction.fixtures);
-
-          if (
-            fixture?.home_score === null ||
-            fixture?.away_score === null ||
-            fixture?.home_score === undefined ||
-            fixture?.away_score === undefined
-          ) {
-            return false;
-          }
-
-          return (
-            getResult(
-              prediction.predicted_home_score,
-              prediction.predicted_away_score
-            ) === getResult(fixture.home_score, fixture.away_score)
-          );
+          return fixture ? isCorrectOutcomePrediction(prediction, fixture) : false;
         }).length;
         const memberFixturePoints = memberPredictions.reduce(
           (sum, prediction) => sum + (prediction.points || 0),
@@ -876,6 +872,10 @@ export default async function PublicProfilePage({ params }: ProfilePageProps) {
                 Tournament winner pick
               </h2>
             </div>
+
+            <p className="mt-2 text-sm font-semibold text-yellow-100">
+              <CountdownTimer locksAt={winnerPickLock.locksAt} />
+            </p>
 
             {winnerPick && winnerTeam ? (
               <div className="mt-6 flex items-center justify-between gap-4 rounded-2xl border border-yellow-300/20 bg-yellow-300/10 p-4">

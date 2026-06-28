@@ -4,6 +4,8 @@ const DEFAULT_OPENFOOTBALL_2026_URL =
 export type OpenFootballScore = {
   ft?: number[] | null;
   ht?: number[] | null;
+  p?: number[] | null;
+  pen?: number[] | null;
 };
 
 export type OpenFootballMatch = {
@@ -13,6 +15,11 @@ export type OpenFootballMatch = {
   time?: string | null;
   team1?: string | null;
   team2?: string | null;
+  winner?: string | null;
+  winnerTeam?: string | null;
+  winner_team?: string | null;
+  winningTeam?: string | null;
+  winning_team?: string | null;
   score?: OpenFootballScore | null;
   group?: string | null;
   ground?: string | null;

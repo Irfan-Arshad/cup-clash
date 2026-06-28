@@ -22,6 +22,9 @@ import { formatUkKickoff } from "@/lib/format-date";
 import {
   areFixtureTeamsConfirmed,
   getFixtureTeamName,
+  getKnockoutRoundName,
+  isKnockoutFixture,
+  knockoutRoundOrder,
 } from "@/lib/fixtures";
 
 export const dynamic = "force-dynamic";
@@ -36,58 +39,7 @@ type FixturesPageProps = {
 
 type Team = TeamFlagData;
 
-const knockoutRoundOrder = [
-  "Round of 32",
-  "Round of 16",
-  "Quarter-finals",
-  "Semi-finals",
-  "Third place",
-  "Final",
-] as const;
-
 type StageFilter = "all" | "groups" | "knockouts";
-
-type FixtureStageFields = {
-  stage?: string | null;
-  round_name?: string | null;
-};
-
-function isKnockoutFixture(fixture: FixtureStageFields) {
-  const stage = fixture.stage?.toLowerCase();
-  const isKnockoutStage = stage === "knockout" || stage === "knockouts";
-  const isKnockoutRound = knockoutRoundOrder.some(
-    (roundName) => roundName === fixture.round_name
-  );
-
-  return isKnockoutStage || isKnockoutRound;
-}
-
-function getKnockoutRoundName(roundName: string | null) {
-  const normalized = roundName
-    ?.toLowerCase()
-    .replace(/[-_]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  const aliases: Record<string, (typeof knockoutRoundOrder)[number]> = {
-    "round of 32": "Round of 32",
-    "round of 16": "Round of 16",
-    "quarter final": "Quarter-finals",
-    "quarter finals": "Quarter-finals",
-    quarterfinal: "Quarter-finals",
-    quarterfinals: "Quarter-finals",
-    "semi final": "Semi-finals",
-    "semi finals": "Semi-finals",
-    semifinal: "Semi-finals",
-    semifinals: "Semi-finals",
-    "third place": "Third place",
-    "third place play off": "Third place",
-    "third place playoff": "Third place",
-    final: "Final",
-  };
-
-  return (normalized && aliases[normalized]) || roundName || "Knockouts";
-}
 
 function FixtureStatusBadge({
   isFinished,
@@ -205,7 +157,7 @@ export default async function FixturesPage({
       ? await supabase
           .from("predictions")
           .select(
-            "fixture_id, predicted_home_score, predicted_away_score, points"
+            "fixture_id, predicted_home_score, predicted_away_score, predicted_advancing_team_id, points"
           )
           .eq("user_id", user.id)
           .in("fixture_id", fixtureIds)
@@ -364,6 +316,13 @@ export default async function FixturesPage({
       fixture.away_placeholder
     );
     const teamsTbc = !homeTeam || !awayTeam;
+    const knockoutFixture = isKnockoutFixture(fixture);
+    const predictedAdvancingTeamName =
+      prediction?.predicted_advancing_team_id === fixture.home_team_id
+        ? homeTeamName
+        : prediction?.predicted_advancing_team_id === fixture.away_team_id
+          ? awayTeamName
+          : null;
 
     return (
       <Card
@@ -413,6 +372,9 @@ export default async function FixturesPage({
                     <AppBadge variant="blue">
                       Your pick: {prediction.predicted_home_score} -{" "}
                       {prediction.predicted_away_score}
+                      {knockoutFixture &&
+                        predictedAdvancingTeamName &&
+                        `, ${predictedAdvancingTeamName} through`}
                     </AppBadge>
                   )}
                 </div>
@@ -485,6 +447,19 @@ export default async function FixturesPage({
                     <p className="mt-2 text-2xl font-black tracking-tight sm:text-4xl">
                       {fixture.home_score} - {fixture.away_score}
                     </p>
+
+                    {prediction && (
+                      <p className="mt-2 text-sm text-emerald-100/80">
+                        Your pick:{" "}
+                        <span className="font-semibold text-white">
+                          {prediction.predicted_home_score} -{" "}
+                          {prediction.predicted_away_score}
+                          {knockoutFixture &&
+                            predictedAdvancingTeamName &&
+                            `, ${predictedAdvancingTeamName} through`}
+                        </span>
+                      </p>
+                    )}
                   </div>
 
                   <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-center sm:rounded-3xl sm:px-6 sm:py-4">
@@ -518,6 +493,14 @@ export default async function FixturesPage({
                       {prediction.predicted_home_score} -{" "}
                       {prediction.predicted_away_score}
                     </span>
+                    {knockoutFixture && predictedAdvancingTeamName && (
+                      <>
+                        ,{" "}
+                        <span className="font-semibold text-white">
+                          {predictedAdvancingTeamName} through
+                        </span>
+                      </>
+                    )}
                     .
                   </p>
                 ) : (
@@ -539,10 +522,16 @@ export default async function FixturesPage({
                   <div className="mt-3">
                     <PredictionForm
                       fixtureId={fixture.id}
+                      isKnockout={knockoutFixture}
+                      homeTeamId={fixture.home_team_id}
+                      awayTeamId={fixture.away_team_id}
                       homeShortName={homeTeam?.short_name || homeTeamName}
                       awayShortName={awayTeam?.short_name || awayTeamName}
                       initialHomeScore={prediction?.predicted_home_score ?? null}
                       initialAwayScore={prediction?.predicted_away_score ?? null}
+                      initialAdvancingTeamId={
+                        prediction?.predicted_advancing_team_id ?? null
+                      }
                     />
                   </div>
                 </details>
@@ -550,10 +539,16 @@ export default async function FixturesPage({
                 <div className="hidden sm:block">
                   <PredictionForm
                     fixtureId={fixture.id}
+                    isKnockout={knockoutFixture}
+                    homeTeamId={fixture.home_team_id}
+                    awayTeamId={fixture.away_team_id}
                     homeShortName={homeTeam?.short_name || homeTeamName}
                     awayShortName={awayTeam?.short_name || awayTeamName}
                     initialHomeScore={prediction?.predicted_home_score ?? null}
                     initialAwayScore={prediction?.predicted_away_score ?? null}
+                    initialAdvancingTeamId={
+                      prediction?.predicted_advancing_team_id ?? null
+                    }
                   />
                 </div>
               </>

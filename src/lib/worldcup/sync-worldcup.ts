@@ -6,6 +6,8 @@ import {
   parseOpenFootballKickoff,
   type OpenFootballMatch,
 } from "@/lib/worldcup/openfootball";
+import { isKnockoutFixture } from "@/lib/fixtures";
+import { recalculateFixturePredictionPoints } from "@/lib/prediction-recalculation";
 
 type Team = {
   id: number;
@@ -27,6 +29,8 @@ type Fixture = {
   away_placeholder: string | null;
   home_score: number | null;
   away_score: number | null;
+  winning_team_id: number | null;
+  decided_by: string | null;
   status: string | null;
 };
 
@@ -36,6 +40,7 @@ export type WorldCupSyncSummary = {
   scoresApplied: number;
   scoresSkipped: number;
   scoreConflicts: number;
+  needingWinner: number;
   knockoutFixturesChecked: number;
   knockoutTeamsUpdated: number;
   errors: string[];
@@ -107,6 +112,77 @@ function getFullTimeScore(match: OpenFootballMatch): [number, number] | null {
   return [score[0], score[1]];
 }
 
+function getPenaltyScore(match: OpenFootballMatch): [number, number] | null {
+  const score = match.score?.pen || match.score?.p;
+
+  if (
+    !Array.isArray(score) ||
+    score.length < 2 ||
+    !Number.isInteger(score[0]) ||
+    !Number.isInteger(score[1]) ||
+    score[0] < 0 ||
+    score[1] < 0 ||
+    score[0] === score[1]
+  ) {
+    return null;
+  }
+
+  return [score[0], score[1]];
+}
+
+function getJsonWinnerName(match: OpenFootballMatch) {
+  return (
+    match.winner ||
+    match.winnerTeam ||
+    match.winner_team ||
+    match.winningTeam ||
+    match.winning_team ||
+    null
+  );
+}
+
+function getJsonKnockoutWinnerTeamId({
+  match,
+  fixture,
+  teamByName,
+  reverseScore,
+}: {
+  match: OpenFootballMatch;
+  fixture: Fixture;
+  teamByName: Map<string, Team>;
+  reverseScore: boolean;
+}) {
+  const penaltyScore = getPenaltyScore(match);
+
+  if (penaltyScore) {
+    const [jsonHomePenalties, jsonAwayPenalties] = penaltyScore;
+    const jsonWinnerSide =
+      jsonHomePenalties > jsonAwayPenalties ? "home" : "away";
+    const fixtureWinnerSide = reverseScore
+      ? jsonWinnerSide === "home"
+        ? "away"
+        : "home"
+      : jsonWinnerSide;
+
+    return fixtureWinnerSide === "home"
+      ? fixture.home_team_id
+      : fixture.away_team_id;
+  }
+
+  const winnerName = getJsonWinnerName(match);
+
+  if (!winnerName) return null;
+
+  const winnerTeam = teamByName.get(getTeamKey(winnerName));
+
+  if (!winnerTeam) return null;
+
+  if (winnerTeam.id === fixture.home_team_id) return fixture.home_team_id;
+  if (winnerTeam.id === fixture.away_team_id) return fixture.away_team_id;
+
+  return null;
+}
+
 function hasChanged(
   fixture: Fixture,
   update: Record<string, string | number | null>
@@ -136,6 +212,7 @@ export async function syncWorldCupData(): Promise<WorldCupSyncSummary> {
     scoresApplied: 0,
     scoresSkipped: 0,
     scoreConflicts: 0,
+    needingWinner: 0,
     knockoutFixturesChecked: 0,
     knockoutTeamsUpdated: 0,
     errors: [],
@@ -164,7 +241,7 @@ export async function syncWorldCupData(): Promise<WorldCupSyncSummary> {
   const { data: fixturesData, error: fixturesError } = await supabase
     .from("fixtures")
     .select(
-      "id, match_number, stage, group_name, round_name, kickoff_at, venue, home_team_id, away_team_id, home_placeholder, away_placeholder, home_score, away_score, status"
+      "id, match_number, stage, group_name, round_name, kickoff_at, venue, home_team_id, away_team_id, home_placeholder, away_placeholder, home_score, away_score, winning_team_id, decided_by, status"
     );
 
   if (fixturesError) {
@@ -311,17 +388,46 @@ export async function syncWorldCupData(): Promise<WorldCupSyncSummary> {
     const [jsonHomeScore, jsonAwayScore] = fullTimeScore;
     const homeScore = reverseScore ? jsonAwayScore : jsonHomeScore;
     const awayScore = reverseScore ? jsonHomeScore : jsonAwayScore;
+    const knockoutFixture = isKnockoutFixture(fixture);
+    let winningTeamId: number | null = null;
+    let decidedBy: string | null = null;
+
+    if (knockoutFixture) {
+      if (homeScore > awayScore) {
+        winningTeamId = fixture.home_team_id;
+        decidedBy = "normal";
+      } else if (awayScore > homeScore) {
+        winningTeamId = fixture.away_team_id;
+        decidedBy = "normal";
+      } else {
+        winningTeamId = getJsonKnockoutWinnerTeamId({
+          match,
+          fixture,
+          teamByName,
+          reverseScore,
+        });
+        decidedBy = winningTeamId ? "penalties" : null;
+      }
+    }
+
     const hasStoredScore =
       fixture.home_score !== null || fixture.away_score !== null;
     const hasSameScore =
       fixture.home_score === homeScore && fixture.away_score === awayScore;
+    const hasSameWinner =
+      !knockoutFixture ||
+      (fixture.winning_team_id === winningTeamId &&
+        fixture.decided_by === decidedBy);
 
-    if (hasSameScore) {
+    if (hasSameScore && hasSameWinner) {
+      if (knockoutFixture && homeScore === awayScore && !winningTeamId) {
+        summary.needingWinner += 1;
+      }
       summary.scoresSkipped += 1;
       continue;
     }
 
-    if (hasStoredScore) {
+    if (hasStoredScore && !hasSameScore) {
       summary.scoreConflicts += 1;
 
       if (process.env.AUTO_OVERWRITE_SCORES !== "true") {
@@ -329,13 +435,30 @@ export async function syncWorldCupData(): Promise<WorldCupSyncSummary> {
       }
     }
 
+    const scoreUpdate: {
+      home_score: number;
+      away_score: number;
+      status: "finished";
+      winning_team_id?: number | null;
+      decided_by?: string | null;
+    } = {
+      home_score: homeScore,
+      away_score: awayScore,
+      status: "finished",
+    };
+
+    if (knockoutFixture) {
+      scoreUpdate.winning_team_id = winningTeamId;
+      scoreUpdate.decided_by = decidedBy;
+
+      if (homeScore === awayScore && !winningTeamId) {
+        summary.needingWinner += 1;
+      }
+    }
+
     const { error: scoreUpdateError } = await supabase
       .from("fixtures")
-      .update({
-        home_score: homeScore,
-        away_score: awayScore,
-        status: "finished",
-      })
+      .update(scoreUpdate)
       .eq("id", fixture.id);
 
     if (scoreUpdateError) {
@@ -347,17 +470,18 @@ export async function syncWorldCupData(): Promise<WorldCupSyncSummary> {
 
     fixture.home_score = homeScore;
     fixture.away_score = awayScore;
+    fixture.winning_team_id = winningTeamId;
+    fixture.decided_by = decidedBy;
     fixture.status = "finished";
     summary.scoresApplied += 1;
 
-    const { error: recalculateError } = await supabase.rpc(
-      "recalculate_fixture_prediction_points",
-      { target_fixture_id: fixture.id }
-    );
-
-    if (recalculateError) {
+    try {
+      await recalculateFixturePredictionPoints(supabase, fixture.id);
+    } catch (error) {
       summary.errors.push(
-        `Score applied to fixture ${fixture.id}, but points recalculation failed: ${recalculateError.message}`
+        `Score applied to fixture ${fixture.id}, but points recalculation failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
       );
     }
   }

@@ -14,6 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { CountdownTimer } from "@/components/ui/countdown-timer";
 import { StatCard } from "@/components/ui/stat-card";
 import { AppBadge } from "@/components/ui/app-badge";
 import { TeamFlag, type TeamFlagData } from "@/components/team/team-flag";
@@ -27,6 +28,7 @@ import {
   areFixtureTeamsConfirmed,
   getFixtureTeamName,
 } from "@/lib/fixtures";
+import { getTournamentWinnerPickLockState } from "@/lib/tournament-winner-lock";
 
 export const dynamic = "force-dynamic";
 
@@ -120,6 +122,8 @@ export default async function DashboardPage() {
           .eq("user_id", user.id)
           .in("fixture_id", fixtureIds)
       : { data: [] };
+
+  const winnerPickLock = await getTournamentWinnerPickLockState(supabase);
 
   const predictionFixtureIds = new Set(
     userPredictions?.map((prediction) => prediction.fixture_id) || []
@@ -234,6 +238,40 @@ export default async function DashboardPage() {
           }
         />
       </div>
+
+      <Card className="mt-4 glass-card text-white sm:mt-6">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-yellow-300" />
+            <h2 className="text-base font-black tracking-tight sm:text-lg">
+              Announcements
+            </h2>
+          </div>
+
+          <div className="mt-3 grid gap-2 text-sm text-slate-200 md:grid-cols-3">
+            <div className="rounded-xl border border-yellow-300/20 bg-yellow-300/10 px-3 py-2">
+              <CountdownTimer
+                locksAt={winnerPickLock.locksAt}
+                className="font-semibold text-yellow-100"
+              />
+            </div>
+
+            <Link
+              href="/profile"
+              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 font-semibold transition hover:bg-white/10"
+            >
+             🎨 Personalise your public profile in My Profile.
+            </Link>
+
+            <Link
+              href="/fixtures?stage=knockouts"
+              className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 font-semibold transition hover:bg-white/10"
+            >
+             ⚽ For knockout draws, choose who goes through on penalties.
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="mt-4 fixture-card text-white sm:hidden">
         <CardContent className="p-4">

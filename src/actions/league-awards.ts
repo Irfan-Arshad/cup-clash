@@ -10,6 +10,10 @@ import {
   type LeagueAwardPreview,
 } from "@/lib/awards/league-awards";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  isCorrectOutcomePrediction,
+  isExactPrediction,
+} from "@/lib/prediction-scoring";
 
 export type LeagueAwardsActionResult = {
   awards: LeagueAwardPreview[];
@@ -20,26 +24,26 @@ export type LeagueAwardsActionResult = {
 
 type FixtureResult = {
   status: string;
+  stage: string | null;
+  round_name: string | null;
+  home_team_id: number | null;
+  away_team_id: number | null;
   home_score: number | null;
   away_score: number | null;
+  winning_team_id: number | null;
 };
 
 type PredictionRow = {
   user_id: string;
   predicted_home_score: number;
   predicted_away_score: number;
+  predicted_advancing_team_id: number | null;
   points: number | null;
   fixtures: FixtureResult | FixtureResult[] | null;
 };
 
 function getRelatedItem<T>(value: T | T[] | null | undefined) {
   return Array.isArray(value) ? value[0] : value;
-}
-
-function getResult(home: number, away: number) {
-  if (home > away) return "HOME";
-  if (away > home) return "AWAY";
-  return "DRAW";
 }
 
 async function loadLeagueAwardPreview(): Promise<LeagueAwardPreview[]> {
@@ -76,11 +80,17 @@ async function loadLeagueAwardPreview(): Promise<LeagueAwardPreview[]> {
           user_id,
           predicted_home_score,
           predicted_away_score,
+          predicted_advancing_team_id,
           points,
           fixtures (
             status,
+            stage,
+            round_name,
+            home_team_id,
+            away_team_id,
             home_score,
-            away_score
+            away_score,
+            winning_team_id
           )
         `
         )
@@ -133,29 +143,11 @@ async function loadLeagueAwardPreview(): Promise<LeagueAwardPreview[]> {
         });
         const exactScores = completedPredictions.filter((prediction) => {
           const fixture = getRelatedItem(prediction.fixtures);
-          return (
-            fixture?.home_score === prediction.predicted_home_score &&
-            fixture?.away_score === prediction.predicted_away_score
-          );
+          return fixture ? isExactPrediction(prediction, fixture) : false;
         }).length;
         const correctOutcomes = completedPredictions.filter((prediction) => {
           const fixture = getRelatedItem(prediction.fixtures);
-
-          if (
-            fixture?.home_score === null ||
-            fixture?.away_score === null ||
-            fixture?.home_score === undefined ||
-            fixture?.away_score === undefined
-          ) {
-            return false;
-          }
-
-          return (
-            getResult(
-              prediction.predicted_home_score,
-              prediction.predicted_away_score
-            ) === getResult(fixture.home_score, fixture.away_score)
-          );
+          return fixture ? isCorrectOutcomePrediction(prediction, fixture) : false;
         }).length;
         const fixturePoints = memberPredictions.reduce(
           (sum, prediction) => sum + (prediction.points || 0),
